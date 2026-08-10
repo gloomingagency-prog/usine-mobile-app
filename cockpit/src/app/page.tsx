@@ -1,6 +1,17 @@
 import Link from "next/link";
+import { getDb, schema } from "@/db";
 
-export default function SynthesePage() {
+export const dynamic = "force-dynamic";
+
+async function totalCosts(): Promise<number | null> {
+  const db = getDb();
+  if (!db) return null;
+  const rows = await db.select({ c: schema.costs.amountCents }).from(schema.costs);
+  return rows.reduce((s, r) => s + r.c, 0);
+}
+
+export default async function SynthesePage() {
+  const total = await totalCosts();
   return (
     <>
       <p className="eyebrow">Cadrage · 10 août 2026</p>
@@ -191,6 +202,14 @@ export default function SynthesePage() {
         <b>Budget</b> : première app ≤ 50-100 $ (décision D7) — tenable : ~15-50 $ de
         variable (surtout tokens IA) + 25 $ le compte Google. Le marketing est gated par
         construction (dossier chiffré → validation humaine).
+        {total !== null && (
+          <>
+            {" "}
+            <Link href="/couts">
+              <b>Dépensé à date : {(total / 100).toFixed(2)} $.</b>
+            </Link>
+          </>
+        )}
       </p>
 
       <h2>Prochaines étapes (V1 de l&apos;usine)</h2>

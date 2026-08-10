@@ -9,7 +9,21 @@ const STATUT_LABEL: Record<string, string> = {
   decidee: "Décidée",
 };
 
-export default async function DecisionsPage() {
+const VERDICT_TOAST: Record<string, string> = {
+  validee: "validée",
+  refusee: "refusée",
+  a_valider: "rouverte",
+};
+
+const dateUTC = (d: Date | null | undefined) =>
+  d ? `${d.toISOString().slice(0, 10)} (UTC)` : null;
+
+export default async function DecisionsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ fait?: string; verdict?: string }>;
+}) {
+  const { fait, verdict } = await searchParams;
   const { source, rows } = await listDecisions();
   const aValider = rows.filter((d) => d.statut === "a_valider");
   const tranchees = rows.filter((d) => d.statut !== "a_valider");
@@ -23,6 +37,12 @@ export default async function DecisionsPage() {
         l&apos;interface d&apos;action. Détail et justifications : rubrique Docs
         (CADRAGE_USINE).
       </p>
+
+      {fait && VERDICT_TOAST[verdict ?? ""] && (
+        <div className="toast ok" role="status">
+          Décision {fait} {VERDICT_TOAST[verdict ?? ""]}.
+        </div>
+      )}
 
       {source === "seed" && (
         <div className="notice">
@@ -48,6 +68,12 @@ export default async function DecisionsPage() {
           {source === "db" && (
             <form action={decide}>
               <input type="hidden" name="id" value={d.id} />
+              <input
+                name="commentaire"
+                maxLength={500}
+                placeholder="Commentaire (optionnel)"
+                aria-label={`Commentaire pour ${d.id}`}
+              />
               <button className="primary" name="verdict" value="validee" type="submit">
                 Valider la proposition
               </button>
@@ -66,6 +92,7 @@ export default async function DecisionsPage() {
             <span className="id">{d.id}</span>
             <b>{d.titre}</b>
             <span className={`badge ${d.statut}`}>{STATUT_LABEL[d.statut]}</span>
+            {dateUTC(d.decideLe) && <span className="id">le {dateUTC(d.decideLe)}</span>}
           </div>
           <p className="proposition">{d.proposition}</p>
           {d.commentaire && <p className="detail">{d.commentaire}</p>}

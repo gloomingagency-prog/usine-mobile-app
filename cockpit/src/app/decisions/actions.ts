@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { eq } from "drizzle-orm";
 import { getDb, schema } from "@/db";
 import { DECISIONS_SEED } from "@/lib/decisions-seed";
@@ -26,7 +26,12 @@ async function ensureSeeded(db: NonNullable<ReturnType<typeof getDb>>) {
 
 export async function listDecisions() {
   const db = getDb();
-  if (!db) return { source: "seed" as const, rows: DECISIONS_SEED };
+  if (!db) {
+    return {
+      source: "seed" as const,
+      rows: DECISIONS_SEED.map((d) => ({ ...d, decideLe: null as Date | null })),
+    };
+  }
   await ensureSeeded(db);
   const rows = await db.select().from(schema.decisions).orderBy(schema.decisions.id);
   return {
@@ -38,6 +43,7 @@ export async function listDecisions() {
       proposition: r.proposition,
       statut: r.statut,
       commentaire: r.commentaire ?? undefined,
+      decideLe: r.decideLe,
     })),
   };
 }
@@ -45,6 +51,7 @@ export async function listDecisions() {
 export async function decide(formData: FormData) {
   const id = String(formData.get("id") ?? "");
   const verdict = String(formData.get("verdict") ?? "");
+  const commentaire = String(formData.get("commentaire") ?? "").trim().slice(0, 500);
   if (!id || (verdict !== "validee" && verdict !== "refusee" && verdict !== "a_valider")) {
     return;
   }
@@ -53,7 +60,11 @@ export async function decide(formData: FormData) {
   await ensureSeeded(db);
   await db
     .update(schema.decisions)
-    .set({ statut: verdict, decideLe: verdict === "a_valider" ? null : new Date() })
+    .set({
+      statut: verdict,
+      decideLe: verdict === "a_valider" ? null : new Date(),
+      ...(commentaire ? { commentaire } : {}),
+    })
     .where(eq(schema.decisions.id, id));
-  revalidatePath("/decisions");
+  redirect(`/decisions?fait=${encodeURIComponent(id)}&verdict=${verdict}`);
 }

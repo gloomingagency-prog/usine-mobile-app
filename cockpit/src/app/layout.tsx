@@ -1,17 +1,11 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { NavLinks } from "./nav-links";
 
 export const metadata: Metadata = {
   title: "Usine à apps — Cockpit",
-  description: "Pilotage du portfolio d'apps mobiles : pipeline, décisions, docs.",
+  description: "Pilotage du portfolio d'apps mobiles : pipeline, décisions, coûts, docs.",
 };
-
-const NAV = [
-  { href: "/", label: "Synthèse" },
-  { href: "/decisions", label: "Décisions" },
-  { href: "/apps", label: "Portfolio" },
-  { href: "/docs", label: "Docs" },
-];
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -22,13 +16,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <div className="brand">
               Usine<span>·</span>Cockpit
             </div>
-            <nav className="main" aria-label="Navigation principale">
-              {NAV.map((item) => (
-                <a key={item.href} href={item.href}>
-                  {item.label}
-                </a>
-              ))}
-            </nav>
+            <NavLinks />
           </div>
         </header>
         <main className="shell">{children}</main>

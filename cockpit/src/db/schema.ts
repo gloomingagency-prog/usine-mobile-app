@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, pgEnum } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, pgEnum, integer } from "drizzle-orm/pg-core";
 
 // Machine à états d'une app du portfolio (ARCHITECTURE_USINE.md §2)
 export const appStatus = pgEnum("app_status", [
@@ -31,6 +31,19 @@ export const appEvents = pgTable("app_events", {
   fromStatus: text("from_status"),
   toStatus: text("to_status").notNull(),
   actor: text("actor").notNull(),
+  at: timestamp("at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// Dépenses réelles (usine et par app) — le budget D7 s'observe, il ne se
+// déclare pas. amount en CENTIMES USD (entier : pas de flottant monétaire).
+export const costKind = pgEnum("cost_kind", ["ia", "build", "store", "infra", "ads", "outils"]);
+
+export const costs = pgTable("costs", {
+  id: text("id").primaryKey(),
+  appId: text("app_id").references(() => apps.id), // null = coût usine
+  kind: costKind("kind").notNull(),
+  label: text("label").notNull(),
+  amountCents: integer("amount_cents").notNull(),
   at: timestamp("at", { withTimezone: true }).notNull().defaultNow(),
 });
 

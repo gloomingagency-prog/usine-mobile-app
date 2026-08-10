@@ -8,6 +8,13 @@
       "when": 1786396358581,
       "tag": "0000_orange_smasher",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1786405471223,
+      "tag": "0001_sudden_lenny_balinger",
+      "breakpoints": true
     }
   ]
 }
