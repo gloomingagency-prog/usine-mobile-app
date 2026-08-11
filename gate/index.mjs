@@ -36,15 +36,18 @@ async function poserVerrou() {
 const fermerVerrou = (id, status, note) =>
   sql`update cron_heartbeats set status = ${status}, note = ${note}, finished_at = now() where id = ${id}`;
 
-// --- LLM : une tâche = une sortie JSON contrainte, parsée défensivement
-async function ia(system, user, maxTokens = 1800) {
+// --- LLM : une tâche = une sortie JSON contrainte, parsée défensivement.
+// Incident réel (2026-08-11) : réponse tronquée par max_tokens → JSON
+// invalide. D'où : consigne de compacité, détection finish_reason=length,
+// et UNE re-tentative plus contrainte avant d'échouer.
+async function appelBrut(system, user, maxTokens) {
   const r = await fetch("https://api.deepseek.com/chat/completions", {
     method: "POST",
     headers: { Authorization: `Bearer ${DEEPSEEK_KEY}`, "Content-Type": "application/json" },
     body: JSON.stringify({
       model: MODELE,
       messages: [
-        { role: "system", content: system },
+        { role: "system", content: system + " Réponds en JSON COMPACT : strings courtes, jamais plus de 6 éléments par tableau." },
         { role: "user", content: user },
       ],
       response_format: { type: "json_object" },
@@ -54,11 +57,28 @@ async function ia(system, user, maxTokens = 1800) {
   });
   if (!r.ok) throw new Error(`DeepSeek ${r.status}: ${(await r.text()).slice(0, 200)}`);
   const d = await r.json();
-  let txt = d.choices?.[0]?.message?.content ?? "{}";
-  const a = txt.indexOf("{");
-  const b = txt.lastIndexOf("}");
-  if (a >= 0 && b > a) txt = txt.slice(a, b + 1); // parse défensif (fences)
-  return JSON.parse(txt);
+  return { txt: d.choices?.[0]?.message?.content ?? "{}", fini: d.choices?.[0]?.finish_reason };
+}
+
+async function ia(system, user, maxTokens = 3000) {
+  for (let essai = 1; essai <= 2; essai++) {
+    const { txt, fini } = await appelBrut(
+      essai === 1 ? system : system + " IMPÉRATIF : citations ≤ 140 caractères, 4 éléments max par tableau.",
+      user,
+      essai === 1 ? maxTokens : maxTokens + 1500,
+    );
+    let t = txt;
+    const a = t.indexOf("{");
+    const b = t.lastIndexOf("}");
+    if (a >= 0 && b > a) t = t.slice(a, b + 1); // parse défensif (fences)
+    try {
+      if (fini === "length") throw new Error("tronqué");
+      return JSON.parse(t);
+    } catch (e) {
+      if (essai === 2) throw e;
+      await dodo(500);
+    }
+  }
 }
 
 // --- Check sherlocking PAR CODE (liste de capacités natives OS) -------
@@ -137,7 +157,7 @@ CONCURRENTS SIMILAIRES: ${JSON.stringify(similaires)}`;
 
   // 1 · Thèmes de plaintes (l'IA CLASSE, elle n'invente pas)
   const themes = await ia(
-    "Tu es analyste marché. Classe les plaintes RÉELLES fournies en thèmes. N'invente RIEN : chaque thème doit citer des extraits fournis. JSON: {\"themes\":[{\"theme\":str,\"frequence\":int,\"citations\":[str,str]}]}",
+    "Tu es analyste marché. Classe les plaintes RÉELLES fournies en 6 thèmes MAX. N'invente RIEN : chaque thème cite 2 extraits fournis, tronqués à 140 caractères. JSON: {\"themes\":[{\"theme\":str,\"frequence\":int,\"citations\":[str,str]}]}",
     contexte,
   );
 
