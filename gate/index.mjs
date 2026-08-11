@@ -132,8 +132,12 @@ function calculerBusinessPlan(m) {
     };
   });
   const seuil = Math.ceil(COUTS_FIXES / (conv.median * prixMois * (1 - COMMISSION)));
+  const prixRef = Number(m.prix_reference_concurrents_usd) || null;
+  const sousCotePct = prixRef ? Math.round((1 - prixMois / prixRef) * 100) : null;
   return {
     modele: m.modele,
+    prix_reference_concurrents_usd: prixRef,
+    sous_cote_pct: sousCotePct,
     paywall: paywallDur ? "dur (onboarding)" : "freemium",
     prix_mensuel_usd: prixMois,
     prix_annuel_usd: Number(m.prix_annuel_usd) || Math.round(prixMois * 12 * 0.6),
@@ -247,20 +251,37 @@ CONCURRENTS SIMILAIRES: ${JSON.stringify(similaires)}`;
   );
   const features = featuresRep.features ?? [];
 
-  // 3ter · Modèle de monétisation : l'IA choisit et justifie, le code
-  // calculera les projections (jamais un chiffre décisif laissé à l'IA).
+  // 3ter · Archétype du pari + potentiel de percée (doctrine portefeuille :
+  // l'objectif est de faire PERCER une app, pas de maximiser le MRR).
+  const archetype = await ia(
+    "Classe cette opportunité dans UN archétype de pari : 'compounding' (rétention/communauté, revenu moyen-long terme), 'cash' (utilitaire à conversion rapide), 'loterie' (novelty/viral à forte variance — attention au risque de review store). Estime le POTENTIEL DE PERCÉE (audience atteignable, boucle virale/communauté, profondeur de la douleur), pas la rentabilité. JSON: {\"archetype\":\"compounding\"|\"cash\"|\"loterie\",\"potentiel_percee_0_100\":int,\"raison\":str}",
+    `PROPOSITION: ${JSON.stringify(proposition)}\nCATÉGORIE: ${idee.categorie}\nMÉTRIQUES: ${JSON.stringify(idee.metrics).slice(0, 500)}`,
+  );
+
+  // 3quater · Modèle de monétisation : l'IA choisit et justifie, le code
+  // calcule les projections. DOCTRINE PRIX (décision utilisateur) :
+  // faire MIEUX pour MOINS CHER — nos coûts ≈ 0 permettent de sous-coter.
   const bpChoix = await ia(
-    "Tu es analyste business mobile. Choisis LE modèle de monétisation pour NOTRE app (freemium honnête : le gratuit livre un vrai basique, le payant résout une vraie douleur — jamais de tier sans valeur). JSON: {\"modele\":str,\"paywall\":\"dur\"|\"freemium\",\"prix_mensuel_usd\":number,\"prix_annuel_usd\":number,\"sources_revenus\":[str],\"justification\":str}",
-    `PROPOSITION: ${JSON.stringify(proposition)}\nFEATURES: ${JSON.stringify(features)}\nPRIX DES CONCURRENTS: ${JSON.stringify(similaires)}\nREPÈRES MARCHÉ: point de prix le plus fréquent 9,99 $/mois ; l'hebdo pèse 55 % du revenu abo ; annuel médian ~40-100 $.`,
+    "Tu es analyste business mobile. DOCTRINE : nos coûts de maintenance sont quasi nuls — propose un PRIX D'ATTAQUE ~30-50 % SOUS la référence des concurrents, TOUT en livrant plus de valeur (les features fournies). Monétisation honnête : le gratuit livre un vrai basique, le payant résout une vraie douleur, jamais de tier sans valeur. Le prix bas achète du volume et des avis (le moat des stores) ; le MIEUX reste le différenciateur, le prix n'est que l'accélérateur. JSON: {\"modele\":str,\"paywall\":\"dur\"|\"freemium\",\"prix_mensuel_usd\":number,\"prix_annuel_usd\":number,\"prix_reference_concurrents_usd\":number,\"sources_revenus\":[str],\"justification\":str}",
+    `PROPOSITION: ${JSON.stringify(proposition)}\nARCHÉTYPE: ${JSON.stringify(archetype)}\nFEATURES: ${JSON.stringify(features)}\nPRIX DES CONCURRENTS: ${JSON.stringify(similaires)}\nREPÈRES MARCHÉ: point de prix le plus fréquent 9,99 $/mois ; l'hebdo pèse 55 % du revenu abo ; annuel médian ~40-100 $.`,
   );
   const businessPlan = calculerBusinessPlan(bpChoix);
 
   // 4 · Quatre critiques INDÉPENDANTS (une dimension chacun)
+  // Les critères s'adaptent à l'archétype (doctrine : une loterie ne se
+  // juge pas sur le D30 — elle se juge sur le viral et le risque store).
+  const estLoterie = archetype.archetype === "loterie";
   const dims = [
-    ["distribution", "Le canal des 100 premiers utilisateurs est-il crédible et répétable ? Une app à 0 avis peut-elle exister face à ce moat d'avis ?"],
-    ["produit", "La killer feature justifie-t-elle un switch ? Est-elle copiable en un sprint par l'incumbent ?"],
-    ["economie", "Freemium honnête possible ? LTV vs coût d'acquisition réaliste pour un solo ? Commission stores intégrée ?"],
-    ["durabilite", "Besoin récurrent (pas one-shot) ? conscient (pas latent) ? durable (pas un pic) ? Risque sherlocking ?"],
+    ["distribution", estLoterie
+      ? "La boucle VIRALE est-elle réelle (partage naturel, presse, meme-abilité) ? Sans viralité, une loterie est morte."
+      : "Le canal des 100 premiers utilisateurs est-il crédible et répétable ? Une app à 0 avis peut-elle exister face à ce moat d'avis ?"],
+    ["produit", estLoterie
+      ? "L'app a-t-elle une fonctionnalité RÉELLE (guideline 4.2 minimum functionality) ? Un gimmick vide sera rejeté par la review 2026."
+      : "La killer feature justifie-t-elle un switch ? Est-elle copiable en un sprint par l'incumbent ? Le prix d'attaque sous-coté accélère-t-il vraiment le switch ?"],
+    ["economie", "Le business plan (prix d'attaque sous-coté, doctrine mieux-pour-moins-cher) tient-il ? LTV vs acquisition organique réaliste ? Commission stores intégrée ?"],
+    ["durabilite", estLoterie
+      ? "Risque pour le COMPTE développeur (4.3 spam, purge 2026 des apps sans traction) ? Le pic de curiosité passé, l'app est-elle un passif ?"
+      : "Besoin récurrent (pas one-shot) ? conscient (pas latent) ? durable (pas un pic) ? Risque sherlocking ?"],
   ];
   const critiques = [];
   for (const [dim, question] of dims) {
@@ -283,6 +304,7 @@ CONCURRENTS SIMILAIRES: ${JSON.stringify(similaires)}`;
       themes: themes.themes ?? [],
       proposition_finale: proposition,
       features_differenciantes: features,
+      archetype,
       business_plan: businessPlan,
       tours_adversariaux: toursAdversariaux,
       sherlocking,

@@ -24,11 +24,15 @@ type Scenario = {
   profit_mois_usd: number;
 };
 
+type Archetype = { archetype?: string; potentiel_percee_0_100?: number; raison?: string };
+
 type BusinessPlan = {
   modele?: string;
   paywall?: string;
   prix_mensuel_usd?: number;
   prix_annuel_usd?: number;
+  prix_reference_concurrents_usd?: number | null;
+  sous_cote_pct?: number | null;
   sources_revenus?: string[];
   justification?: string;
   commission_stores?: string;
@@ -44,6 +48,7 @@ type Dossier = {
   themes?: { theme: string; frequence: number; citations: string[] }[];
   proposition_finale?: Record<string, unknown>;
   features_differenciantes?: Feature[];
+  archetype?: Archetype;
   business_plan?: BusinessPlan;
   sherlocking?: string[];
   critiques?: { dimension: string; score: number; kill: boolean; raison: string; risques?: string[] }[];
@@ -92,6 +97,15 @@ export default async function ViabilitePage({ params }: { params: Promise<{ id: 
       <div className={`card verdict`}>
         <span className={`v ${v.cls}`}>{v.label}</span>
         <p>
+          {d.archetype?.archetype && (
+            <>
+              <span className="badge decidee">pari : {d.archetype.archetype}</span>{" "}
+              <span className="badge a_valider">
+                potentiel de percée : {d.archetype.potentiel_percee_0_100 ?? "?"}/100
+              </span>
+              <br />
+            </>
+          )}
           Probabilité de succès calculée par code : <b>{report.probability} %</b>
           {d.donnees?.nb_plaintes_analysees !== undefined &&
             ` · ${d.donnees.nb_plaintes_analysees} plaintes réelles analysées`}
@@ -178,13 +192,16 @@ export default async function ViabilitePage({ params }: { params: Promise<{ id: 
               <p className="src">{d.business_plan.justification}</p>
             </div>
             <div className="card">
-              <h3>Prix proposés</h3>
+              <h3>Prix d&apos;attaque (doctrine : mieux pour moins cher)</h3>
               <p className="big">
                 {d.business_plan.prix_mensuel_usd} $/mois
               </p>
               <p className="src">
-                ou {d.business_plan.prix_annuel_usd} $/an · commission stores{" "}
-                {d.business_plan.commission_stores}
+                ou {d.business_plan.prix_annuel_usd} $/an
+                {d.business_plan.prix_reference_concurrents_usd
+                  ? ` · référence concurrents ${d.business_plan.prix_reference_concurrents_usd} $ (sous-cote ${d.business_plan.sous_cote_pct} %)`
+                  : ""}{" "}
+                · commission {d.business_plan.commission_stores}
               </p>
             </div>
             <div className="card">

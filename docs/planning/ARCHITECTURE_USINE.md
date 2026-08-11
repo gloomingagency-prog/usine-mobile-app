@@ -68,6 +68,14 @@ Implémentation directe de la skill `product-wedge-analysis` :
    **argument de vente**. C'est la proposition de valeur administrable
    du dossier — et la matière commerciale réutilisable (fiche store,
    paywall, éventuel modèle usine-service).
+5bis. **Business plan par dossier** (directive utilisateur 2026-08-11) :
+   l'IA choisit le modèle de monétisation (freemium honnête, prix ancrés
+   sur les concurrents), le CODE calcule tout — 3 scénarios de volume
+   (conversion par type de paywall, benchmarks RevenueCat 2026 → MRR net
+   après commission 15 % → profit), seuil de rentabilité en
+   installs/mois, objectifs D1/D7/D30 top quartile. Visible sur la page
+   dossier du cockpit ; à la sortie de l'étage 5 (run), les MÊMES
+   indicateurs seront mesurés en réel — le plan devient falsifiable.
 6. ≥ 3 tours adversariaux + 4 critiques indépendants (distribution,
    produit, économie, durabilité) → probabilité agrégée **par code**.
 7. Verdict `go / pivot / kill` calculé par seuils. `go` → **gate humain**
