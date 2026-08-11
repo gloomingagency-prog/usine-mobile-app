@@ -15,7 +15,10 @@ if (!process.env.DATABASE_URL) {
 
 const JOB = "radar";
 const CADENCE_SEC = 86400; // quotidien
-const PAYS = "us"; // marché principal v1 ; multi-pays en v1.1
+// v1.1 : deux marchés — US (volume) + FR (beachhead géographique : les
+// niches mal servies en langue/contexte local contournent le moat d'avis).
+const MARCHES = ["us", "fr"];
+const PAYS = MARCHES[0]; // marché par défaut pour l'échantillonnage d'avis
 
 // Spectre large (directive D6) — catégories Google Play.
 const CATEGORIES = [
@@ -29,7 +32,7 @@ const CATEGORIES = [
   ["LIFESTYLE", gplay.category.LIFESTYLE],
 ];
 
-const TOP_PAR_CATEGORIE = 30; // apps examinées par catégorie
+const TOP_PAR_CATEGORIE = 100; // v1.1 : creuser au-delà du top (mi-traîne)
 const MAX_IDEES_AVIS = 15; // idées dont on échantillonne les avis (coût réseau)
 const dodo = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -58,24 +61,30 @@ async function fermerVerrou(id, status, note) {
 }
 
 // --- Scoring PAR CODE (auditable, bornes explicites) ------------------
-// Opportunité = demande PROUVÉE × leader FAIBLE × moat d'avis franchissable.
-//   demande  : log10(installs)   — 0 si < 100k (pas de demande prouvée)
-//   faiblesse: 4.5 − note        — 0 si note ≥ 4.3 (leader solide)
-//   moat     : log10(nb avis)    — plus le leader a d'avis, plus dur de se classer
+// v1.1 (leçon du premier batch : 6/6 kills — le top des charts donne des
+// leaders détestés mais DOMINANTS, moat infranchissable pour un solo).
+// On cible la MI-TRAÎNE : demande prouvée mais moat franchissable.
+//   demande  : 50k ≤ installs ≤ 50M (au-delà = marque établie, exclue)
+//   faiblesse: 4.5 − note — 0 si note ≥ 4.3
+//   moat     : EXCLUSION dure si > 300k avis (personne ne se classe en face) ;
+//              bonus si < 20k avis (rattrapable par une app neuve)
 function scorer({ minInstalls, score, ratings }) {
-  if (!minInstalls || minInstalls < 100_000) return 0;
+  if (!minInstalls || minInstalls < 50_000 || minInstalls > 50_000_000) return 0;
   if (!score || score >= 4.3) return 0;
-  const demande = Math.min(Math.log10(minInstalls), 9) / 9; // 0..1
+  const avis = ratings ?? 0;
+  if (avis > 300_000) return 0; // moat infranchissable
+  const demande = Math.min(Math.log10(minInstalls) - 4, 3.7) / 3.7; // 0..1 (50k→50M)
   const faiblesse = Math.min(Math.max(4.5 - score, 0), 1.5) / 1.5; // 0..1
-  const moat = Math.min(Math.log10(Math.max(ratings ?? 10, 10)), 7) / 7; // 0..1
-  return Math.round(100 * demande * faiblesse * (1 - 0.6 * moat));
+  const moat = Math.min(Math.log10(Math.max(avis, 10)), 5.5) / 5.5; // 0..1 à 300k
+  const franchissable = avis < 20_000 ? 1.15 : 1; // bonus mi-traîne
+  return Math.round(Math.min(100 * demande * faiblesse * (1 - 0.55 * moat) * franchissable, 100));
 }
 
-async function avisNegatifs(appId) {
+async function avisNegatifs(appId, pays = PAYS) {
   try {
     const r = await gplay.reviews({
       appId,
-      country: PAYS,
+      country: pays,
       sort: gplay.sort.NEWEST,
       num: 60,
     });
@@ -90,44 +99,52 @@ async function avisNegatifs(appId) {
 
 async function run() {
   const candidats = [];
-  for (const [nom, cat] of CATEGORIES) {
-    try {
-      const top = await gplay.list({
-        category: cat,
-        collection: gplay.collection.TOP_FREE,
-        num: TOP_PAR_CATEGORIE,
-        country: PAYS,
-      });
-      for (const app of top) {
-        await dodo(400); // throttling — jamais agressif (risque contractuel)
-        try {
-          const d = await gplay.app({ appId: app.appId, country: PAYS });
-          const s = scorer({ minInstalls: d.minInstalls, score: d.score, ratings: d.ratings });
-          if (s > 0) {
-            candidats.push({
-              categorie: nom,
-              appRef: d.appId,
-              titre: d.title,
-              metrics: {
-                installs: d.minInstalls,
-                note: Math.round(d.score * 100) / 100,
-                avis: d.ratings,
-                prix: d.priceText ?? "gratuit",
-                genre: d.genre,
-                pays: PAYS,
-              },
-              score: s,
-            });
+  const vus = new Set(); // une app peut ranker sur les deux marchés
+  for (const marche of MARCHES) {
+    for (const [nom, cat] of CATEGORIES) {
+      try {
+        const top = await gplay.list({
+          category: cat,
+          collection: gplay.collection.TOP_FREE,
+          num: TOP_PAR_CATEGORIE,
+          country: marche,
+        });
+        for (const app of top) {
+          if (vus.has(app.appId)) continue;
+          vus.add(app.appId);
+          // Pré-filtre sur les données du listing (gratuit) avant l'appel
+          // détail (coûteux) : note affichée ≥ 4.3 = leader solide, passe.
+          if (app.score && app.score >= 4.3) continue;
+          await dodo(400); // throttling — jamais agressif (risque contractuel)
+          try {
+            const d = await gplay.app({ appId: app.appId, country: marche });
+            const s = scorer({ minInstalls: d.minInstalls, score: d.score, ratings: d.ratings });
+            if (s > 0) {
+              candidats.push({
+                categorie: nom,
+                appRef: d.appId,
+                titre: d.title,
+                metrics: {
+                  installs: d.minInstalls,
+                  note: Math.round(d.score * 100) / 100,
+                  avis: d.ratings,
+                  prix: d.priceText ?? "gratuit",
+                  genre: d.genre,
+                  pays: marche,
+                },
+                score: s,
+              });
+            }
+          } catch {
+            // app dépubliée/région bloquée : on passe, le radar reste factuel
           }
-        } catch {
-          // app dépubliée/région bloquée : on passe, le radar reste factuel
         }
+        console.log(`${marche}/${nom}: ${top.length} apps examinées`);
+      } catch (e) {
+        console.error(`${marche}/${nom}: échec de listing — ${String(e).slice(0, 200)}`);
       }
-      console.log(`${nom}: ${top.length} apps examinées`);
-    } catch (e) {
-      console.error(`${nom}: échec de listing — ${String(e).slice(0, 200)}`);
+      await dodo(1500);
     }
-    await dodo(1500);
   }
 
   candidats.sort((a, b) => b.score - a.score);
@@ -136,7 +153,7 @@ async function run() {
   // Avis 1-3★ pour les meilleures opportunités (le début du dossier wedge)
   for (const c of retenus.slice(0, MAX_IDEES_AVIS)) {
     await dodo(800);
-    c.metrics.plaintes = await avisNegatifs(c.appRef);
+    c.metrics.plaintes = await avisNegatifs(c.appRef, c.metrics.pays);
   }
 
   for (const c of retenus) {
