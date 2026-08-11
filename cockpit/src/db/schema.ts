@@ -47,6 +47,21 @@ export const costs = pgTable("costs", {
   at: timestamp("at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+// Heartbeats des crons/agents de l'usine (VPS) — la page Statut publique
+// les lit. Un job silencieux > 2× sa cadence = PANNE, pas un retard.
+export const heartbeatStatus = pgEnum("heartbeat_status", ["running", "ok", "error"]);
+
+export const cronHeartbeats = pgTable("cron_heartbeats", {
+  id: text("id").primaryKey(),
+  job: text("job").notNull(),
+  appId: text("app_id"),
+  status: heartbeatStatus("status").notNull(),
+  expectedEverySec: integer("expected_every_sec"), // cadence déclarée du job
+  startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
+  finishedAt: timestamp("finished_at", { withTimezone: true }),
+  note: text("note"),
+});
+
 export const decisionStatus = pgEnum("decision_status", [
   "a_valider",
   "validee",

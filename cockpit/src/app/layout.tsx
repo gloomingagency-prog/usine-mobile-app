@@ -11,15 +11,20 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="fr">
       <body>
-        <header className="top">
-          <div className="inner">
+        <div className="layout">
+          <aside className="side">
             <div className="brand">
               Usine<span>·</span>Cockpit
             </div>
             <NavLinks />
-          </div>
-        </header>
-        <main className="shell">{children}</main>
+            <div className="foot">
+              L&apos;IA argumente, le CODE tranche,
+              <br />
+              l&apos;HUMAIN valide l&apos;argent.
+            </div>
+          </aside>
+          <main className="shell">{children}</main>
+        </div>
       </body>
     </html>
   );

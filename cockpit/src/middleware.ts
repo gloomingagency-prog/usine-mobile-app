@@ -29,6 +29,8 @@ export function middleware(req: NextRequest) {
 }
 
 export const config = {
-  // Tout est protégé sauf les assets Next.
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+  // Tout est protégé sauf les assets Next, le favicon et la page de
+  // statut publique (lecture seule, zéro donnée sensible — consultable
+  // du téléphone sans se connecter).
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|icon.svg|statut).*)"],
 };

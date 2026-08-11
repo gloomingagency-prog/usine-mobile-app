@@ -55,10 +55,32 @@ export default async function CoutsPage({
             </div>
             {[...parKind.entries()].map(([k, v]) => (
               <div className="card" key={k}>
-                <h3>{KIND_LABEL[k] ?? k}</h3>
+                <h3>
+                  <span className={`dot dot-${k}`} aria-hidden="true" />
+                  {KIND_LABEL[k] ?? k}
+                </h3>
                 <p className="big">{euros(v)}</p>
               </div>
             ))}
+          </div>
+
+          <h2>Dépenses connues à engager</h2>
+          <p className="meta">
+            Un clic au moment où tu les engages — rien n&apos;est enregistré d&apos;avance.
+          </p>
+          <div className="presets">
+            <form action={addCost}>
+              <input type="hidden" name="label" value="Compte développeur Google Play (une fois)" />
+              <input type="hidden" name="kind" value="store" />
+              <input type="hidden" name="amount" value="25" />
+              <button type="submit">+ Compte Google Play — 25 $</button>
+            </form>
+            <form action={addCost}>
+              <input type="hidden" name="label" value="Apple Developer Program (annuel)" />
+              <input type="hidden" name="kind" value="store" />
+              <input type="hidden" name="amount" value="99" />
+              <button type="submit">+ Apple Developer — 99 $/an</button>
+            </form>
           </div>
 
           <h2>Ajouter une dépense</h2>
@@ -106,7 +128,10 @@ export default async function CoutsPage({
                     <tr key={c.id}>
                       <td>{c.at.toISOString().slice(0, 10)}</td>
                       <td>{c.label}</td>
-                      <td>{KIND_LABEL[c.kind] ?? c.kind}</td>
+                      <td>
+                        <span className={`dot dot-${c.kind}`} aria-hidden="true" />
+                        {KIND_LABEL[c.kind] ?? c.kind}
+                      </td>
                       <td>{euros(c.amountCents)}</td>
                     </tr>
                   ))}

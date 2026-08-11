@@ -38,21 +38,41 @@ body {
 }
 a { color: var(--accent-ink); }
 
-.shell { max-width: 62rem; margin: 0 auto; padding: 0 1.25rem 5rem; }
-header.top {
-  border-bottom: 1px solid var(--line);
-  background: var(--surface);
-  margin-bottom: 2rem;
+/* Layout : sidebar fixe à gauche, contenu à droite ; topbar sur mobile */
+.layout { display: flex; min-height: 100vh; }
+aside.side {
+  width: 15rem; flex: 0 0 15rem;
+  background: var(--surface); border-right: 1px solid var(--line);
+  padding: 1.25rem 1rem; position: sticky; top: 0; height: 100vh;
+  display: flex; flex-direction: column; gap: 1.5rem;
 }
-header.top .inner {
-  max-width: 62rem; margin: 0 auto; padding: 0.8rem 1.25rem;
-  display: flex; align-items: baseline; gap: 1.5rem; flex-wrap: wrap;
-}
-.brand { font-weight: 700; letter-spacing: 0.02em; }
+.brand { font-weight: 700; letter-spacing: 0.02em; font-size: 1.05rem; }
 .brand span { color: var(--accent-ink); }
-nav.main { display: flex; gap: 1.1rem; font-size: 0.92rem; }
-nav.main a { text-decoration: none; color: var(--muted); }
-nav.main a:hover, nav.main a[aria-current="page"] { color: var(--accent-ink); }
+nav.main { display: flex; flex-direction: column; gap: 0.15rem; font-size: 0.94rem; }
+nav.main a {
+  text-decoration: none; color: var(--muted);
+  padding: 0.45rem 0.7rem; border-radius: 6px; border-left: 3px solid transparent;
+}
+nav.main a:hover { color: var(--accent-ink); background: var(--chip-bg); }
+nav.main a[aria-current="page"] {
+  color: var(--accent-ink); background: var(--chip-bg);
+  border-left-color: var(--accent); font-weight: 600;
+}
+.side .foot { margin-top: auto; font-size: 0.75rem; color: var(--muted); }
+.shell { flex: 1; min-width: 0; max-width: 62rem; margin: 0 auto; padding: 1.5rem 2rem 5rem; }
+@media (max-width: 760px) {
+  .layout { flex-direction: column; }
+  aside.side {
+    width: auto; flex: none; height: auto; position: static;
+    flex-direction: row; align-items: center; gap: 1rem;
+    border-right: none; border-bottom: 1px solid var(--line);
+    padding: 0.7rem 1rem;
+  }
+  nav.main { flex-direction: row; flex-wrap: wrap; gap: 0.1rem; }
+  nav.main a { border-left: none; padding: 0.3rem 0.55rem; }
+  .side .foot { display: none; }
+  .shell { padding: 1rem 1.25rem 4rem; }
+}
 
 h1 { font-size: 1.7rem; line-height: 1.25; margin: 0.25rem 0 0.5rem; text-wrap: balance; }
 h2 { font-size: 1.25rem; margin: 2.5rem 0 0.75rem; padding-top: 1.25rem; border-top: 1px solid var(--line); text-wrap: balance; }
@@ -157,6 +177,15 @@ input:focus-visible, select:focus-visible { outline: 2px solid var(--accent); ou
 .costform { display: flex; gap: 0.9rem; align-items: end; flex-wrap: wrap; }
 .costform label { display: grid; gap: 0.25rem; font-size: 0.85rem; color: var(--muted); font-weight: 600; }
 .decision form input[name="commentaire"] { flex: 1 1 14rem; }
+
+.dot { display: inline-block; width: 0.55rem; height: 0.55rem; border-radius: 99px; margin-right: 0.4rem; vertical-align: middle; }
+.dot-ia { background: var(--accent); }
+.dot-build { background: #5B7FBF; }
+.dot-store { background: var(--warn); }
+.dot-infra { background: var(--muted); }
+.dot-ads { background: var(--danger); }
+.dot-outils { background: var(--go); }
+.presets { display: flex; gap: 0.6rem; flex-wrap: wrap; }
 
 .notice {
   border-left: 3px solid var(--warn); background: var(--surface);
