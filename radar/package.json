@@ -1,0 +1,13 @@
+{
+  "name": "usine-radar",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "run": "node index.mjs"
+  },
+  "dependencies": {
+    "@neondatabase/serverless": "^1.0.1",
+    "google-play-scraper": "^10.1.3"
+  }
+}

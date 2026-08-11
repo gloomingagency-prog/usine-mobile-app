@@ -75,10 +75,11 @@ export const DECISIONS_SEED: DecisionSeed[] = [
   },
   {
     id: "D6",
-    titre: "Niches cibles du radar",
-    detail: "Les 2-3 catégories que le radar mine au lancement.",
+    titre: "Périmètre du radar",
+    detail:
+      "Directive utilisateur (2026-08-11) : ne PAS se limiter aux niches utilitaires — jeux, applis d'apprentissage, formations, éducation ludique, tout est ouvert. Le radar mine large, le gate de viabilité filtre.",
     proposition:
-      "Short-list à produire au premier run du radar — critères : incumbents faibles, besoin récurrent/conscient/durable, résistant au sherlocking (santé/habitudes verticalisé, publics sous-servis).",
+      "Radar v1 sur un spectre large (éducation, jeux éducatifs/casual, santé-habitudes, parentalité, productivité verticale…) ; la short-list documentée sortira des données du radar, pas d'une intuition.",
     statut: "a_valider",
   },
   {

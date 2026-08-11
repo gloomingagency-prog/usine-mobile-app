@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, pgEnum, integer } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, pgEnum, integer, jsonb } from "drizzle-orm/pg-core";
 
 // Machine à états d'une app du portfolio (ARCHITECTURE_USINE.md §2)
 export const appStatus = pgEnum("app_status", [
@@ -45,6 +45,27 @@ export const costs = pgTable("costs", {
   label: text("label").notNull(),
   amountCents: integer("amount_cents").notNull(),
   at: timestamp("at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// File « Idées » alimentée par le Radar (étage 0). id déterministe
+// `categorie:appRef` → les re-runs upsertent, jamais de doublon.
+export const ideaStatus = pgEnum("idea_status", [
+  "nouvelle",
+  "a_analyser", // envoyée au gate de viabilité
+  "ecartee",
+  "retenue",
+]);
+
+export const ideas = pgTable("ideas", {
+  id: text("id").primaryKey(),
+  categorie: text("categorie").notNull(),
+  appRef: text("app_ref").notNull(), // appId store de l'incumbent faible
+  titre: text("titre").notNull(),
+  resume: text("resume").notNull(),
+  metrics: jsonb("metrics").notNull(), // installs, note, ratings, extraits d'avis 1-3★
+  score: integer("score").notNull(), // 0-100, calculé PAR CODE (voir radar/)
+  status: ideaStatus("status").notNull().default("nouvelle"),
+  seenAt: timestamp("seen_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
 // Heartbeats des crons/agents de l'usine (VPS) — la page Statut publique
