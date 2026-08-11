@@ -68,6 +68,16 @@ export const ideas = pgTable("ideas", {
   seenAt: timestamp("seen_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+// Alertes de la veille. L'id EST la clé de déduplication (insert on
+// conflict do nothing → une alerte donnée ne part qu'une fois).
+export const alerts = pgTable("alerts", {
+  id: text("id").primaryKey(), // ex. "silencieux:radar:2026-08-11"
+  severity: text("severity").notNull(), // info | critical
+  source: text("source").notNull(),
+  message: text("message").notNull(),
+  at: timestamp("at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 // Heartbeats des crons/agents de l'usine (VPS) — la page Statut publique
 // les lit. Un job silencieux > 2× sa cadence = PANNE, pas un retard.
 export const heartbeatStatus = pgEnum("heartbeat_status", ["running", "ok", "error"]);

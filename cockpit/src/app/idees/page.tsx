@@ -1,6 +1,6 @@
 import { desc } from "drizzle-orm";
 import { getDb, schema } from "@/db";
-import { trierIdee } from "./actions";
+import { ajouterIdee, trierIdee } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -10,6 +10,7 @@ type Metrics = {
   avis?: number;
   genre?: string;
   pays?: string;
+  manuelle?: boolean;
   plaintes?: { note: number; extrait: string }[];
 };
 
@@ -47,7 +48,27 @@ export default async function IdeesPage({
         au gate de viabilité. Aucune app ne se construit sans verdict <code>go</code>.
       </p>
 
-      {fait && <div className="toast ok" role="status">Idée triée.</div>}
+      {fait === "ajout" && <div className="toast ok" role="status">Idée ajoutée à la file.</div>}
+      {fait && fait !== "ajout" && <div className="toast ok" role="status">Idée triée.</div>}
+
+      <details className="card manual-idea">
+        <summary>+ Ajouter une idée à la main</summary>
+        <form action={ajouterIdee} className="costform">
+          <label>
+            Titre
+            <input name="titre" required maxLength={120} placeholder="ex. App de révision du Code pour ados" />
+          </label>
+          <label>
+            Catégorie
+            <input name="categorie" maxLength={40} placeholder="EDUCATION, JEU, FORMATION…" />
+          </label>
+          <label>
+            Pourquoi (notes)
+            <input name="notes" maxLength={600} placeholder="l'intuition, la douleur observée…" />
+          </label>
+          <button className="primary" type="submit">Ajouter à la file</button>
+        </form>
+      </details>
       {rows === null && (
         <div className="notice">Base non configurée (<code>DATABASE_URL</code> absent).</div>
       )}
@@ -63,22 +84,28 @@ export default async function IdeesPage({
         return (
           <div className="card decision" key={idea.id}>
             <div className="head">
-              <span className="badge decidee">{idea.score}</span>
-              <b>{idea.titre}</b>
+              <span className="badge decidee">{m.manuelle ? "manuelle" : idea.score}</span>
+              {m.manuelle ? (
+                <b>{idea.titre}</b>
+              ) : (
+                <b>
+                  <a
+                    href={`https://play.google.com/store/apps/details?id=${idea.appRef}`}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    {idea.titre}
+                  </a>
+                </b>
+              )}
               <span className="id">{idea.categorie}</span>
               <span className={`badge ${BADGE_CLASS[idea.status]}`}>
                 {STATUT_LABEL[idea.status]}
               </span>
             </div>
             <p className="detail">
-              {idea.resume} {m.genre ? `· ${m.genre}` : ""} · marché {m.pays ?? "?"} ·{" "}
-              <a
-                href={`https://play.google.com/store/apps/details?id=${idea.appRef}`}
-                target="_blank"
-                rel="noreferrer"
-              >
-                fiche Play
-              </a>
+              {idea.resume} {m.genre ? `· ${m.genre}` : ""}
+              {m.manuelle ? "" : ` · marché ${m.pays ?? "?"}`}
             </p>
             {(m.plaintes ?? []).length > 0 && (
               <details>

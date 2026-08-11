@@ -32,5 +32,6 @@ export const config = {
   // Tout est protégé sauf les assets Next, le favicon et la page de
   // statut publique (lecture seule, zéro donnée sensible — consultable
   // du téléphone sans se connecter).
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|icon.svg|statut).*)"],
+  // /api/veille est hors Basic Auth : protégé par CRON_SECRET (Bearer).
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|icon.svg|statut|api/veille).*)"],
 };
