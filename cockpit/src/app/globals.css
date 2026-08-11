@@ -59,6 +59,12 @@ nav.main a[aria-current="page"] {
   border-left-color: var(--accent); font-weight: 600;
 }
 .side .foot { margin-top: auto; font-size: 0.75rem; color: var(--muted); }
+.navbadge {
+  display: inline-block; min-width: 1.2rem; text-align: center;
+  background: var(--accent); color: #fff; border-radius: 99px;
+  font-size: 0.72rem; font-weight: 700; padding: 0.05rem 0.35rem;
+  margin-left: 0.5rem; vertical-align: middle;
+}
 .shell { flex: 1; min-width: 0; max-width: 62rem; margin: 0 auto; padding: 1.5rem 2rem 5rem; }
 @media (max-width: 760px) {
   .layout { flex-direction: column; }

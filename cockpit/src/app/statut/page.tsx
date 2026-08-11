@@ -88,6 +88,7 @@ export default async function StatutPage() {
                 <th>Job</th>
                 <th>État</th>
                 <th>Dernier passage</th>
+                <th>Prochain attendu</th>
               </tr>
             </thead>
             <tbody>
@@ -98,6 +99,10 @@ export default async function StatutPage() {
                 const cls =
                   silent || j.status === "error" ? "danger" : j.status === "running" ? "warn" : "ok";
                 const label = silent ? "SILENCIEUX (panne)" : j.status === "ok" ? "OK" : j.status;
+                const prochain =
+                  j.expectedEverySec !== null
+                    ? new Date(j.lastAt.getTime() + j.expectedEverySec * 1000)
+                    : null;
                 return (
                   <tr key={j.job}>
                     <td>
@@ -105,6 +110,11 @@ export default async function StatutPage() {
                     </td>
                     <td className={cls}>{label}</td>
                     <td>{ageLabel(age)}</td>
+                    <td>
+                      {prochain
+                        ? `${prochain.toISOString().slice(0, 16).replace("T", " ")} UTC`
+                        : "—"}
+                    </td>
                   </tr>
                 );
               })}

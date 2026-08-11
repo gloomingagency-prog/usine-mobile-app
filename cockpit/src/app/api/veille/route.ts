@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { desc, gt, and, eq } from "drizzle-orm";
 import { getDb, schema } from "@/db";
+import { lienAction } from "@/lib/signature";
 
 export const dynamic = "force-dynamic";
 
@@ -95,12 +96,20 @@ export async function GET(req: NextRequest) {
     .orderBy(desc(schema.ideas.score))
     .limit(10);
   if (fortes.length > 0) {
-    const liste = fortes.map((i) => `• [${i.score}] ${i.titre} (${i.categorie})`).join("<br/>");
+    const base = "https://usine-cockpit.vercel.app";
+    const liste = fortes
+      .map(
+        (i) =>
+          `• [${i.score}] ${i.titre} (${i.categorie}) — ` +
+          `<a href="${lienAction(base, i.id, "a_analyser")}">→ Gate</a> · ` +
+          `<a href="${lienAction(base, i.id, "ecartee")}">Écarter</a>`,
+      )
+      .join("<br/>");
     await alerter(
       `idees:${jour}`,
       "info",
       "radar",
-      `${fortes.length} idée(s) à score ≥ 50 détectée(s) :<br/>${liste}<br/>À trier : https://usine-cockpit.vercel.app/idees`,
+      `${fortes.length} idée(s) à score ≥ 50 détectée(s) :<br/>${liste}<br/>Toute la file : ${base}/idees`,
     );
   }
 

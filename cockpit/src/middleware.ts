@@ -33,5 +33,6 @@ export const config = {
   // statut publique (lecture seule, zéro donnée sensible — consultable
   // du téléphone sans se connecter).
   // /api/veille est hors Basic Auth : protégé par CRON_SECRET (Bearer).
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|icon.svg|statut|api/veille).*)"],
+  // /api/idee-action est protégé par signature HMAC + expiration.
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|icon.svg|statut|api/veille|api/idee-action).*)"],
 };

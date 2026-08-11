@@ -13,7 +13,7 @@ const NAV = [
   { href: "/statut", label: "Statut" },
 ];
 
-export function NavLinks() {
+export function NavLinks({ badges = {} }: { badges?: Record<string, number> }) {
   const pathname = usePathname();
   const isActive = (href: string) =>
     href === "/" ? pathname === "/" : pathname.startsWith(href);
@@ -27,6 +27,9 @@ export function NavLinks() {
           aria-current={isActive(item.href) ? "page" : undefined}
         >
           {item.label}
+          {(badges[item.href] ?? 0) > 0 && (
+            <span className="navbadge">{badges[item.href]}</span>
+          )}
         </Link>
       ))}
     </nav>

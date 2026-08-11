@@ -68,6 +68,21 @@ export const ideas = pgTable("ideas", {
   seenAt: timestamp("seen_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+// Dossiers du gate de viabilité (étage 1). Un par idée analysée.
+// Le verdict est CALCULÉ PAR CODE depuis les scores des critiques —
+// jamais laissé à l'appréciation du modèle.
+export const viabilityVerdict = pgEnum("viability_verdict", ["go", "pivot", "kill"]);
+
+export const viabilityReports = pgTable("viability_reports", {
+  id: text("id").primaryKey(),
+  ideaId: text("idea_id").notNull().unique().references(() => ideas.id),
+  verdict: viabilityVerdict("verdict").notNull(),
+  probability: integer("probability").notNull(), // 0-100, agrégé par code
+  dossier: jsonb("dossier").notNull(), // plaintes, wedge, critiques, sherlocking…
+  model: text("model").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 // Alertes de la veille. L'id EST la clé de déduplication (insert on
 // conflict do nothing → une alerte donnée ne part qu'une fois).
 export const alerts = pgTable("alerts", {

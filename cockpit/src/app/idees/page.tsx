@@ -1,4 +1,5 @@
-import { desc } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
+import Link from "next/link";
 import { getDb, schema } from "@/db";
 import { ajouterIdee, trierIdee } from "./actions";
 
@@ -35,7 +36,12 @@ export default async function IdeesPage({
   const { fait } = await searchParams;
   const db = getDb();
   const rows = db
-    ? await db.select().from(schema.ideas).orderBy(desc(schema.ideas.score)).limit(100)
+    ? await db
+        .select()
+        .from(schema.ideas)
+        .leftJoin(schema.viabilityReports, eq(schema.viabilityReports.ideaId, schema.ideas.id))
+        .orderBy(desc(schema.ideas.score))
+        .limit(100)
     : null;
 
   return (
@@ -79,7 +85,7 @@ export default async function IdeesPage({
         </p>
       )}
 
-      {(rows ?? []).map((idea) => {
+      {(rows ?? []).map(({ ideas: idea, viability_reports: report }) => {
         const m = idea.metrics as Metrics;
         return (
           <div className="card decision" key={idea.id}>
@@ -102,6 +108,20 @@ export default async function IdeesPage({
               <span className={`badge ${BADGE_CLASS[idea.status]}`}>
                 {STATUT_LABEL[idea.status]}
               </span>
+              {report && (
+                <Link href={`/viabilite/${encodeURIComponent(idea.id)}`}>
+                  <span
+                    className={`badge ${
+                      report.verdict === "go" ? "validee" : report.verdict === "kill" ? "refusee" : "a_valider"
+                    }`}
+                  >
+                    dossier : {report.verdict.toUpperCase()} {report.probability}%
+                  </span>
+                </Link>
+              )}
+              {!report && idea.status === "a_analyser" && (
+                <span className="id">analyse en attente (cron horaire)</span>
+              )}
             </div>
             <p className="detail">
               {idea.resume} {m.genre ? `· ${m.genre}` : ""}
