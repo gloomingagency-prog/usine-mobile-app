@@ -200,11 +200,31 @@ async function enrichir(idee) {
       }
     } catch { /* idem */ }
   }
-  return { manuelle, plaintes, similaires, nbAvis };
+  // Incident vécu (NeoMind, 2026-08-11) : app_ref invalide → 0 plainte
+  // minée → les critiques ont jugé « demande latente » SANS données.
+  // Une référence attachée qui ne rend rien est SUSPECTE, jamais avalée.
+  let refSuspecte = false;
+  if (!manuelle || idee.app_ref) {
+    if (idee.app_ref && plaintes.length === 0 && similaires.length === 0) {
+      refSuspecte = true;
+      try {
+        await gplay.app({ appId: idee.app_ref, country: "us" });
+        refSuspecte = false; // l'app existe : juste pauvre en avis récents
+      } catch {
+        /* app_ref introuvable : refSuspecte reste true */
+      }
+    }
+  }
+  return { manuelle, plaintes, similaires, nbAvis, refSuspecte };
 }
 
 async function analyser(idee) {
-  const { manuelle, plaintes, similaires, nbAvis } = await enrichir(idee);
+  const { manuelle, plaintes, similaires, nbAvis, refSuspecte } = await enrichir(idee);
+  if (refSuspecte) {
+    throw new Error(
+      `app_ref « ${idee.app_ref} » introuvable sur le store — corriger la référence avant d'analyser (aucun dossier produit sans données)`,
+    );
+  }
   const contexte = `IDÉE: ${idee.titre} (catégorie ${idee.categorie})
 RÉSUMÉ: ${idee.resume}
 MÉTRIQUES: ${JSON.stringify(idee.metrics).slice(0, 800)}
@@ -300,7 +320,7 @@ CONCURRENTS SIMILAIRES: ${JSON.stringify(similaires)}`;
     verdict,
     probabilite,
     dossier: {
-      donnees: { nb_plaintes_analysees: nbAvis, manuelle, similaires },
+      donnees: { nb_plaintes_analysees: nbAvis, manuelle, similaires, donnees_maigres: nbAvis < 10 },
       themes: themes.themes ?? [],
       proposition_finale: proposition,
       features_differenciantes: features,
