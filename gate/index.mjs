@@ -264,7 +264,7 @@ CONCURRENTS SIMILAIRES: ${JSON.stringify(similaires)}`;
     );
     toursAdversariaux.push({ tour, critique });
     proposition = await ia(
-      "Tu es le stratège. Révise ta proposition pour répondre à la critique — durcis, précise, ou change d'angle si l'attaque est structurelle. Même format JSON que la proposition initiale, plus {\"reponse_critique\":str}.",
+      "Tu es le stratège. Révise ta proposition pour répondre à la critique — durcis, précise, ou change d'angle si l'attaque est structurelle. CONTRAINTE MAINTENUE À CHAQUE RÉVISION : le canal des 100 premiers reste DIRECT et actionnable en semaine 1 (ASO de niche, communautés existantes, TikTok/UGC, product-led viral) — jamais d'écoles, partenariats, licences ou institutions. Même format JSON que la proposition initiale, plus {\"reponse_critique\":str}.",
       `PROPOSITION: ${JSON.stringify(proposition)}\nCRITIQUE: ${JSON.stringify(critique)}`,
     );
     await dodo(300);
