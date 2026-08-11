@@ -159,6 +159,10 @@ function calculerBusinessPlan(m) {
 }
 
 // --- Verdict PAR CODE (seuils explicites, décote données maigres) -----
+// Calibration v2 (2026-08-11, après 12/12 kills) : le kill mono-critique
+// déclenché sur du doute ne discrimine plus rien. Désormais : il faut
+// DEUX kills concordants (ou p < 30) pour tuer — un kill isolé pèse sur
+// le score mais laisse le dossier en pivot, relisible par l'humain.
 function calculerVerdict(critiques, nbAvis) {
   const scores = critiques.map((c) => Math.max(0, Math.min(100, Number(c.score) || 0)));
   const kills = critiques.filter((c) => c.kill === true);
@@ -166,12 +170,17 @@ function calculerVerdict(critiques, nbAvis) {
     (scores[0] * 1.5 + scores[1] + scores[2] + scores[3]) / 4.5, // distribution pèse 1,5×
   );
   if (nbAvis < 30) probabilite -= 10; // décote : données maigres
+  if (kills.length === 1) probabilite -= 5; // un kill isolé pèse, sans tuer
   probabilite = Math.max(0, Math.min(100, probabilite));
   let verdict;
-  if (kills.length > 0 || probabilite < 35) verdict = "kill";
-  else if (probabilite >= 55 && Math.min(...scores) >= 40) verdict = "go";
+  if (kills.length >= 2 || probabilite < 30) verdict = "kill";
+  else if (probabilite >= 55 && kills.length === 0 && Math.min(...scores) >= 40) verdict = "go";
   else verdict = "pivot";
-  return { probabilite, verdict, kills: kills.map((k) => k.raison) };
+  return {
+    probabilite,
+    verdict,
+    kills: kills.map((k) => (k.fait_fatal ? `${k.raison} [fait : ${k.fait_fatal}]` : k.raison)),
+  };
 }
 
 // --- Enrichissement AVANT de générer (sources pauvres → IA invente) ---
@@ -239,8 +248,12 @@ CONCURRENTS SIMILAIRES: ${JSON.stringify(similaires)}`;
   );
 
   // 2 · Proposition de wedge, puis 3 tours adversariaux
+  // Garde amont = garde aval (leçon 37) : les critiques refusent
+  // systématiquement les canaux institutionnels (écoles, partenariats,
+  // licences B2B2C) — trop lents, non répétables. Le prompt les interdit
+  // donc EN AMONT au lieu de laisser la boucle tourner à vide.
   let proposition = await ia(
-    "Tu es stratège produit mobile. Propose UN wedge pour battre cet incumbent faible : la douleur #1 (ancrée dans les plaintes), UNE killer feature (grosse, pas une micro-amélioration, avec critères d'acceptance testables), le canal des 100 premiers utilisateurs (PAS \"les stores\"), la cible précise. JSON: {\"douleur\":str,\"killer_feature\":str,\"acceptance\":[str],\"canal_100\":str,\"cible\":str}",
+    "Tu es stratège produit mobile. Propose UN wedge pour battre cet incumbent faible : la douleur #1 (ancrée dans les plaintes), UNE killer feature (grosse, pas une micro-amélioration, avec critères d'acceptance testables), le canal des 100 premiers utilisateurs, la cible précise. INTERDIT comme canal des 100 premiers : « les stores » seuls, et TOUT canal institutionnel (écoles, académies, partenariats, licences B2B2C — trop lents et non répétables pour démarrer). Le canal doit être DIRECT et actionnable seul en semaine 1 : ASO de niche, communautés existantes (Reddit/Facebook groups/Discord), contenu TikTok/UGC, product-led viral. JSON: {\"douleur\":str,\"killer_feature\":str,\"acceptance\":[str],\"canal_100\":str,\"cible\":str}",
     contexte + "\nTHÈMES: " + JSON.stringify(themes),
   );
   const toursAdversariaux = [];
@@ -306,7 +319,7 @@ CONCURRENTS SIMILAIRES: ${JSON.stringify(similaires)}`;
   const critiques = [];
   for (const [dim, question] of dims) {
     const c = await ia(
-      `Tu es un critique indépendant et PESSIMISTE, dimension « ${dim} ». En cas de doute, note BAS. JSON: {"score":int_0_100,"kill":bool,"raison":str,"risques":[str]}`,
+      `Tu es un critique indépendant et PESSIMISTE, dimension « ${dim} ». En cas de doute, note BAS — mais le drapeau kill est RÉSERVÉ à un risque FATAL prouvé par un FAIT que tu cites (règle de store violée, marché structurellement mort, canal matériellement impossible). Un doute, un risque gérable ou une exécution difficile = score bas SANS kill (leçon terrain : seuls des FAITS bloquent). JSON: {"score":int_0_100,"kill":bool,"fait_fatal":str|null,"raison":str,"risques":[str]}`,
       `${question}\nSHERLOCKING DÉTECTÉ PAR CODE: ${JSON.stringify(sherlocking)}\nPROPOSITION FINALE: ${JSON.stringify(proposition)}\nFEATURES DIFFÉRENCIANTES PROPOSÉES: ${JSON.stringify(features)}\nBUSINESS PLAN (projections calculées par code): ${JSON.stringify({ modele: businessPlan.modele, prix: businessPlan.prix_mensuel_usd, seuil_rentabilite: businessPlan.seuil_rentabilite_installs_mois, scenarios: businessPlan.scenarios })}\nCONTEXTE: ${contexte.slice(0, 2000)}`,
     );
     critiques.push({ dimension: dim, ...c });
