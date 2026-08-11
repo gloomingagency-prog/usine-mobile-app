@@ -101,6 +101,59 @@ function checkSherlocking(texte) {
   return NATIFS.filter(([re]) => new RegExp(re).test(t)).map(([, label]) => label);
 }
 
+// --- Business plan : l'IA choisit le MODÈLE, le CODE calcule TOUT -----
+// Benchmarks encodés (sources datées dans docs/planning/ANALYSE_MARCHE.md) :
+// conversion download→payant médiane 2026 : freemium ~2,1 %, paywall dur
+// ~10,7 % (RevenueCat) ; commission stores 15 % (< 1 M$/an) ; coûts fixes
+// ~10 $/mois/app. V1 volontairement simple : revenu d'une cohorte
+// mensuelle d'installs, sans churn cumulé — étiqueté comme tel.
+function calculerBusinessPlan(m) {
+  const paywallDur = m.paywall === "dur";
+  const conv = paywallDur
+    ? { prudent: 0.04, median: 0.107, optimiste: 0.15 }
+    : { prudent: 0.01, median: 0.021, optimiste: 0.04 };
+  const prixMois = Math.min(Math.max(Number(m.prix_mensuel_usd) || 9.99, 0.99), 49.99);
+  const COMMISSION = 0.15;
+  const COUTS_FIXES = 10;
+  const scenarios = [
+    ["prudent", 1000],
+    ["median", 5000],
+    ["optimiste", 20000],
+  ].map(([nom, installs]) => {
+    const abonnes = Math.round(installs * conv[nom]);
+    const mrrNet = Math.round(abonnes * prixMois * (1 - COMMISSION));
+    return {
+      scenario: nom,
+      installs_mois: installs,
+      conversion_pct: +(conv[nom] * 100).toFixed(1),
+      abonnes_mois: abonnes,
+      mrr_net_usd: mrrNet,
+      profit_mois_usd: mrrNet - COUTS_FIXES,
+    };
+  });
+  const seuil = Math.ceil(COUTS_FIXES / (conv.median * prixMois * (1 - COMMISSION)));
+  return {
+    modele: m.modele,
+    paywall: paywallDur ? "dur (onboarding)" : "freemium",
+    prix_mensuel_usd: prixMois,
+    prix_annuel_usd: Number(m.prix_annuel_usd) || Math.round(prixMois * 12 * 0.6),
+    sources_revenus: m.sources_revenus ?? [],
+    justification: m.justification ?? "",
+    commission_stores: "15 % (programmes small business, < 1 M$/an)",
+    couts_fixes_mois_usd: COUTS_FIXES,
+    scenarios,
+    seuil_rentabilite_installs_mois: seuil,
+    objectifs: {
+      d1_pct: 30,
+      d7_pct: 15,
+      d30_pct: 8,
+      note: "cibles rétention = top quartile (Adjust 2026) ; objectif J+90 : tenir le scénario prudent 3 mois consécutifs",
+    },
+    methode:
+      "calculs PAR CODE — conversion par type de paywall (RevenueCat 2026 : freemium ~2,1 %, paywall dur ~10,7 % médian), commission 15 %, coûts fixes ~10 $/mois/app ; revenu de cohorte mensuelle SANS churn cumulé (v1 prudente)",
+  };
+}
+
 // --- Verdict PAR CODE (seuils explicites, décote données maigres) -----
 function calculerVerdict(critiques, nbAvis) {
   const scores = critiques.map((c) => Math.max(0, Math.min(100, Number(c.score) || 0)));
@@ -194,6 +247,14 @@ CONCURRENTS SIMILAIRES: ${JSON.stringify(similaires)}`;
   );
   const features = featuresRep.features ?? [];
 
+  // 3ter · Modèle de monétisation : l'IA choisit et justifie, le code
+  // calculera les projections (jamais un chiffre décisif laissé à l'IA).
+  const bpChoix = await ia(
+    "Tu es analyste business mobile. Choisis LE modèle de monétisation pour NOTRE app (freemium honnête : le gratuit livre un vrai basique, le payant résout une vraie douleur — jamais de tier sans valeur). JSON: {\"modele\":str,\"paywall\":\"dur\"|\"freemium\",\"prix_mensuel_usd\":number,\"prix_annuel_usd\":number,\"sources_revenus\":[str],\"justification\":str}",
+    `PROPOSITION: ${JSON.stringify(proposition)}\nFEATURES: ${JSON.stringify(features)}\nPRIX DES CONCURRENTS: ${JSON.stringify(similaires)}\nREPÈRES MARCHÉ: point de prix le plus fréquent 9,99 $/mois ; l'hebdo pèse 55 % du revenu abo ; annuel médian ~40-100 $.`,
+  );
+  const businessPlan = calculerBusinessPlan(bpChoix);
+
   // 4 · Quatre critiques INDÉPENDANTS (une dimension chacun)
   const dims = [
     ["distribution", "Le canal des 100 premiers utilisateurs est-il crédible et répétable ? Une app à 0 avis peut-elle exister face à ce moat d'avis ?"],
@@ -205,7 +266,7 @@ CONCURRENTS SIMILAIRES: ${JSON.stringify(similaires)}`;
   for (const [dim, question] of dims) {
     const c = await ia(
       `Tu es un critique indépendant et PESSIMISTE, dimension « ${dim} ». En cas de doute, note BAS. JSON: {"score":int_0_100,"kill":bool,"raison":str,"risques":[str]}`,
-      `${question}\nSHERLOCKING DÉTECTÉ PAR CODE: ${JSON.stringify(sherlocking)}\nPROPOSITION FINALE: ${JSON.stringify(proposition)}\nFEATURES DIFFÉRENCIANTES PROPOSÉES: ${JSON.stringify(features)}\nCONTEXTE: ${contexte.slice(0, 2200)}`,
+      `${question}\nSHERLOCKING DÉTECTÉ PAR CODE: ${JSON.stringify(sherlocking)}\nPROPOSITION FINALE: ${JSON.stringify(proposition)}\nFEATURES DIFFÉRENCIANTES PROPOSÉES: ${JSON.stringify(features)}\nBUSINESS PLAN (projections calculées par code): ${JSON.stringify({ modele: businessPlan.modele, prix: businessPlan.prix_mensuel_usd, seuil_rentabilite: businessPlan.seuil_rentabilite_installs_mois, scenarios: businessPlan.scenarios })}\nCONTEXTE: ${contexte.slice(0, 2000)}`,
     );
     critiques.push({ dimension: dim, ...c });
     await dodo(300);
@@ -222,6 +283,7 @@ CONCURRENTS SIMILAIRES: ${JSON.stringify(similaires)}`;
       themes: themes.themes ?? [],
       proposition_finale: proposition,
       features_differenciantes: features,
+      business_plan: businessPlan,
       tours_adversariaux: toursAdversariaux,
       sherlocking,
       critiques,

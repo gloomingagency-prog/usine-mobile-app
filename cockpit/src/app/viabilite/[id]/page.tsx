@@ -15,11 +15,36 @@ type Feature = {
   argument_vente?: string;
 };
 
+type Scenario = {
+  scenario: string;
+  installs_mois: number;
+  conversion_pct: number;
+  abonnes_mois: number;
+  mrr_net_usd: number;
+  profit_mois_usd: number;
+};
+
+type BusinessPlan = {
+  modele?: string;
+  paywall?: string;
+  prix_mensuel_usd?: number;
+  prix_annuel_usd?: number;
+  sources_revenus?: string[];
+  justification?: string;
+  commission_stores?: string;
+  couts_fixes_mois_usd?: number;
+  scenarios?: Scenario[];
+  seuil_rentabilite_installs_mois?: number;
+  objectifs?: { d1_pct: number; d7_pct: number; d30_pct: number; note?: string };
+  methode?: string;
+};
+
 type Dossier = {
   donnees?: { nb_plaintes_analysees?: number; manuelle?: boolean; similaires?: { titre: string; note: number; avis: number; installs: number }[] };
   themes?: { theme: string; frequence: number; citations: string[] }[];
   proposition_finale?: Record<string, unknown>;
   features_differenciantes?: Feature[];
+  business_plan?: BusinessPlan;
   sherlocking?: string[];
   critiques?: { dimension: string; score: number; kill: boolean; raison: string; risques?: string[] }[];
   kills?: string[];
@@ -138,6 +163,88 @@ export default async function ViabilitePage({ params }: { params: Promise<{ id: 
               </tbody>
             </table>
           </div>
+        </>
+      )}
+
+      {d.business_plan && (
+        <>
+          <h2>Business plan — d&apos;où vient l&apos;argent, combien ça peut rapporter</h2>
+          <div className="cols">
+            <div className="card">
+              <h3>Modèle</h3>
+              <p>
+                <b>{d.business_plan.modele ?? "—"}</b> · paywall {d.business_plan.paywall}
+              </p>
+              <p className="src">{d.business_plan.justification}</p>
+            </div>
+            <div className="card">
+              <h3>Prix proposés</h3>
+              <p className="big">
+                {d.business_plan.prix_mensuel_usd} $/mois
+              </p>
+              <p className="src">
+                ou {d.business_plan.prix_annuel_usd} $/an · commission stores{" "}
+                {d.business_plan.commission_stores}
+              </p>
+            </div>
+            <div className="card">
+              <h3>Seuil de rentabilité</h3>
+              <p className="big">
+                ~{d.business_plan.seuil_rentabilite_installs_mois?.toLocaleString("fr-FR")}{" "}
+                installs/mois
+              </p>
+              <p className="src">
+                pour couvrir ~{d.business_plan.couts_fixes_mois_usd} $/mois de coûts fixes
+                (scénario médian)
+              </p>
+            </div>
+            <div className="card">
+              <h3>Objectifs (mesurés dès la V1)</h3>
+              <p>
+                D1 &gt; {d.business_plan.objectifs?.d1_pct} % · D7 &gt;{" "}
+                {d.business_plan.objectifs?.d7_pct} % · D30 &gt;{" "}
+                {d.business_plan.objectifs?.d30_pct} %
+              </p>
+              <p className="src">{d.business_plan.objectifs?.note}</p>
+            </div>
+          </div>
+          {(d.business_plan.sources_revenus ?? []).length > 0 && (
+            <p>
+              <b>Sources de revenus :</b> {(d.business_plan.sources_revenus ?? []).join(" · ")}
+            </p>
+          )}
+          <h3>Projections selon le volume d&apos;utilisateurs</h3>
+          <div className="tablewrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Scénario</th>
+                  <th>Installs/mois</th>
+                  <th>Conversion</th>
+                  <th>Abonnés/mois</th>
+                  <th>MRR net</th>
+                  <th>Profit/mois</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(d.business_plan.scenarios ?? []).map((s) => (
+                  <tr key={s.scenario}>
+                    <td>
+                      <b>{s.scenario}</b>
+                    </td>
+                    <td>{s.installs_mois.toLocaleString("fr-FR")}</td>
+                    <td>{s.conversion_pct} %</td>
+                    <td>{s.abonnes_mois.toLocaleString("fr-FR")}</td>
+                    <td className="ok">{s.mrr_net_usd.toLocaleString("fr-FR")} $</td>
+                    <td className={s.profit_mois_usd >= 0 ? "ok" : "danger"}>
+                      {s.profit_mois_usd.toLocaleString("fr-FR")} $
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="src">{d.business_plan.methode}</p>
         </>
       )}
 
