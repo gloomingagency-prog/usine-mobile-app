@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
+import { SESSION_COOKIE, verifySessionToken } from "@/lib/session";
 
 // Le cockpit prend des décisions : jamais exposé sans authentification.
-// Basic Auth simple pour le maillon 1 ; remplacé par une vraie session
-// (Auth.js) quand le multi-utilisateurs arrivera.
-export function middleware(req: NextRequest) {
+// Auth par COOKIE de session signé (les Server Actions passent par
+// fetch(), qui ne rattache pas Basic Auth selon les navigateurs —
+// incident « les boutons ne font rien », 2026-08-11). Basic Auth reste
+// accepté en ALTERNATIVE pour les scripts/curl.
+export async function middleware(req: NextRequest) {
   const user = process.env.ADMIN_USER;
   const password = process.env.ADMIN_PASSWORD;
+  const secret = process.env.AUTH_SECRET || process.env.CRON_SECRET || "";
   if (!user || !password) {
     // Fail-closed : sans identifiants configurés, on n'expose rien.
     return new NextResponse("Cockpit non configuré (ADMIN_USER/ADMIN_PASSWORD).", {
@@ -13,15 +17,28 @@ export function middleware(req: NextRequest) {
     });
   }
 
+  // 1 · Cookie de session valide ?
+  const token = req.cookies.get(SESSION_COOKIE)?.value;
+  if (await verifySessionToken(secret, token)) return NextResponse.next();
+
+  // 2 · Basic Auth valide (scripts, curl) ?
   const header = req.headers.get("authorization") ?? "";
   if (header.startsWith("Basic ")) {
-    const decoded = Buffer.from(header.slice(6), "base64").toString("utf8");
+    const decoded = atob(header.slice(6));
     const idx = decoded.indexOf(":");
-    const u = decoded.slice(0, idx);
-    const p = decoded.slice(idx + 1);
-    if (u === user && p === password) return NextResponse.next();
+    if (decoded.slice(0, idx) === user && decoded.slice(idx + 1) === password) {
+      return NextResponse.next();
+    }
   }
 
+  // 3 · Sinon : page de connexion pour le navigateur, 401 pour le reste.
+  const accepteHtml = (req.headers.get("accept") ?? "").includes("text/html");
+  if (accepteHtml && req.method === "GET") {
+    const url = req.nextUrl.clone();
+    url.pathname = "/login";
+    url.search = "";
+    return NextResponse.redirect(url);
+  }
   return new NextResponse("Authentification requise.", {
     status: 401,
     headers: { "WWW-Authenticate": 'Basic realm="Usine Cockpit", charset="UTF-8"' },
@@ -29,10 +46,9 @@ export function middleware(req: NextRequest) {
 }
 
 export const config = {
-  // Tout est protégé sauf les assets Next, le favicon et la page de
-  // statut publique (lecture seule, zéro donnée sensible — consultable
-  // du téléphone sans se connecter).
-  // /api/veille est hors Basic Auth : protégé par CRON_SECRET (Bearer).
-  // /api/idee-action est protégé par signature HMAC + expiration.
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|icon.svg|statut|api/veille|api/idee-action).*)"],
+  // Public : statut (lecture seule), veille (CRON_SECRET), idee-action
+  // (signature HMAC), login (le point d'entrée), assets Next.
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|icon.svg|statut|login|api/veille|api/idee-action).*)",
+  ],
 };
