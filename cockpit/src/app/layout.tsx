@@ -1,8 +1,12 @@
 import type { Metadata } from "next";
+import { Sora, IBM_Plex_Sans } from "next/font/google";
 import { count, eq, and, isNull } from "drizzle-orm";
 import "./globals.css";
 import { NavLinks } from "./nav-links";
 import { getDb, schema } from "@/db";
+
+const display = Sora({ subsets: ["latin"], weight: ["600", "700"], variable: "--font-display" });
+const body = IBM_Plex_Sans({ subsets: ["latin"], weight: ["400", "500", "600"], variable: "--font-body" });
 
 export const metadata: Metadata = {
   title: "Usine à apps — Cockpit",
@@ -40,7 +44,7 @@ async function fetchBadges(): Promise<Record<string, number>> {
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const badges = await fetchBadges();
   return (
-    <html lang="fr">
+    <html lang="fr" className={`${display.variable} ${body.variable}`}>
       <body>
         <div className="layout">
           <aside className="side">
