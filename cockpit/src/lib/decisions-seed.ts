@@ -80,7 +80,18 @@ export const DECISIONS_SEED: DecisionSeed[] = [
       "Directive utilisateur (2026-08-11) : ne PAS se limiter aux niches utilitaires — jeux, applis d'apprentissage, formations, éducation ludique, tout est ouvert. Le radar mine large, le gate de viabilité filtre.",
     proposition:
       "Radar v1 sur un spectre large (éducation, jeux éducatifs/casual, santé-habitudes, parentalité, productivité verticale…) ; la short-list documentée sortira des données du radar, pas d'une intuition.",
-    statut: "a_valider",
+    statut: "validee",
+    commentaire: "Validée par l'utilisateur le 2026-08-11 : spectre large confirmé.",
+  },
+  {
+    id: "D9",
+    titre: "Composition du portefeuille",
+    detail:
+      "Doctrine du 2026-08-11 (DOCTRINE_PORTEFEUILLE.md) : objectif = faire percer une app ; archétypes compounding / cash / loterie avec critères de gate adaptés.",
+    proposition:
+      "~70 % compounding · ~20 % cash · ~10 % loterie, révisable sur données. Premières apps du compte : jamais une loterie.",
+    statut: "validee",
+    commentaire: "Confiance déléguée par l'utilisateur (2026-08-11).",
   },
   {
     id: "D7",
