@@ -185,6 +185,15 @@ CONCURRENTS SIMILAIRES: ${JSON.stringify(similaires)}`;
     `${idee.titre} ${idee.metrics?.genre ?? ""} ${proposition.douleur ?? ""} ${proposition.killer_feature ?? ""}`,
   );
 
+  // 3bis · La PROPOSITION DE VALEUR : les features que NOUS apportons.
+  // Chaque feature est ancrée dans une douleur réelle des plaintes — c'est
+  // ce qui se lit côté administration et se vend derrière.
+  const featuresRep = await ia(
+    "Tu es product manager mobile. Liste les features DIFFÉRENCIANTES que NOTRE app apporterait face aux concurrents. Max 6, la première est la killer feature. Chaque feature DOIT répondre à une douleur présente dans les plaintes/thèmes fournis — n'invente pas de besoin. JSON: {\"features\":[{\"feature\":str,\"type\":\"killer\"|\"differenciante\"|\"support\",\"douleur\":str,\"pourquoi_absent_chez_eux\":str,\"effort\":\"S\"|\"M\"|\"L\",\"argument_vente\":str}]}",
+    `PROPOSITION FINALE: ${JSON.stringify(proposition)}\nTHÈMES DE PLAINTES: ${JSON.stringify(themes).slice(0, 2500)}\nCONCURRENTS: ${JSON.stringify(similaires)}`,
+  );
+  const features = featuresRep.features ?? [];
+
   // 4 · Quatre critiques INDÉPENDANTS (une dimension chacun)
   const dims = [
     ["distribution", "Le canal des 100 premiers utilisateurs est-il crédible et répétable ? Une app à 0 avis peut-elle exister face à ce moat d'avis ?"],
@@ -196,7 +205,7 @@ CONCURRENTS SIMILAIRES: ${JSON.stringify(similaires)}`;
   for (const [dim, question] of dims) {
     const c = await ia(
       `Tu es un critique indépendant et PESSIMISTE, dimension « ${dim} ». En cas de doute, note BAS. JSON: {"score":int_0_100,"kill":bool,"raison":str,"risques":[str]}`,
-      `${question}\nSHERLOCKING DÉTECTÉ PAR CODE: ${JSON.stringify(sherlocking)}\nPROPOSITION FINALE: ${JSON.stringify(proposition)}\nCONTEXTE: ${contexte.slice(0, 2500)}`,
+      `${question}\nSHERLOCKING DÉTECTÉ PAR CODE: ${JSON.stringify(sherlocking)}\nPROPOSITION FINALE: ${JSON.stringify(proposition)}\nFEATURES DIFFÉRENCIANTES PROPOSÉES: ${JSON.stringify(features)}\nCONTEXTE: ${contexte.slice(0, 2200)}`,
     );
     critiques.push({ dimension: dim, ...c });
     await dodo(300);
@@ -212,6 +221,7 @@ CONCURRENTS SIMILAIRES: ${JSON.stringify(similaires)}`;
       donnees: { nb_plaintes_analysees: nbAvis, manuelle, similaires },
       themes: themes.themes ?? [],
       proposition_finale: proposition,
+      features_differenciantes: features,
       tours_adversariaux: toursAdversariaux,
       sherlocking,
       critiques,

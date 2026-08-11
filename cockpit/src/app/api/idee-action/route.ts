@@ -6,9 +6,9 @@ import { verifierAction } from "@/lib/signature";
 export const dynamic = "force-dynamic";
 
 // Action sur une idée depuis un lien d'e-mail signé (hors Basic Auth).
-// Seules deux transitions sont possibles par ce canal — jamais rien
-// d'irréversible : a_analyser (envoyer au gate) et ecartee (trier).
-const STATUTS_PERMIS = ["a_analyser", "ecartee"] as const;
+// Transitions permises par ce canal — toutes réversibles depuis le
+// cockpit : a_analyser (→ gate), ecartee, retenue (→ cadrage).
+const STATUTS_PERMIS = ["a_analyser", "ecartee", "retenue"] as const;
 
 function page(titre: string, corps: string, code = 200) {
   return new NextResponse(
@@ -44,6 +44,11 @@ export async function GET(req: NextRequest) {
     .returning({ titre: schema.ideas.titre });
   if (rows.length === 0) return page("Introuvable", "Idée introuvable.", 404);
 
-  const libelle = statut === "a_analyser" ? "envoyée au gate de viabilité" : "écartée";
+  const libelle =
+    statut === "a_analyser"
+      ? "envoyée au gate de viabilité"
+      : statut === "retenue"
+        ? "retenue — direction le cadrage (étage 2)"
+        : "écartée";
   return page("Fait", `« ${rows[0].titre} » ${libelle}.`);
 }

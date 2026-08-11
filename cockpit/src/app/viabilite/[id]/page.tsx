@@ -2,18 +2,34 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { eq } from "drizzle-orm";
 import { getDb, schema } from "@/db";
-import { trierIdee } from "../../idees/actions";
+import { relancerAnalyse, trierIdee } from "../../idees/actions";
 
 export const dynamic = "force-dynamic";
+
+type Feature = {
+  feature: string;
+  type: "killer" | "differenciante" | "support";
+  douleur: string;
+  pourquoi_absent_chez_eux?: string;
+  effort?: string;
+  argument_vente?: string;
+};
 
 type Dossier = {
   donnees?: { nb_plaintes_analysees?: number; manuelle?: boolean; similaires?: { titre: string; note: number; avis: number; installs: number }[] };
   themes?: { theme: string; frequence: number; citations: string[] }[];
   proposition_finale?: Record<string, unknown>;
+  features_differenciantes?: Feature[];
   sherlocking?: string[];
   critiques?: { dimension: string; score: number; kill: boolean; raison: string; risques?: string[] }[];
   kills?: string[];
   methode?: string;
+};
+
+const TYPE_FEATURE: Record<string, { label: string; cls: string }> = {
+  killer: { label: "KILLER", cls: "validee" },
+  differenciante: { label: "différenciante", cls: "a_valider" },
+  support: { label: "support", cls: "decidee" },
 };
 
 const VERDICT_STYLE: Record<string, { label: string; cls: string }> = {
@@ -78,7 +94,51 @@ export default async function ViabilitePage({ params }: { params: Promise<{ id: 
               Écarter
             </button>
           </form>
+          <form action={relancerAnalyse}>
+            <input type="hidden" name="id" value={idea.id} />
+            <button type="submit">Relancer l&apos;analyse (nouveau dossier dans l&apos;heure)</button>
+          </form>
         </div>
+      )}
+
+      {(d.features_differenciantes ?? []).length > 0 && (
+        <>
+          <h2>Proposition de valeur — ce que NOUS apportons</h2>
+          <p className="meta">
+            Chaque feature est ancrée dans une douleur réelle des plaintes. C&apos;est la
+            valeur administrable du dossier — et la matière commerciale si on la vend.
+          </p>
+          <div className="tablewrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Feature</th>
+                  <th>Douleur adressée</th>
+                  <th>Pourquoi eux ne l&apos;ont pas</th>
+                  <th>Effort</th>
+                  <th>Argument de vente</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(d.features_differenciantes ?? []).map((f, i) => (
+                  <tr key={i}>
+                    <td>
+                      <b>{f.feature}</b>
+                      <br />
+                      <span className={`badge ${TYPE_FEATURE[f.type]?.cls ?? "decidee"}`}>
+                        {TYPE_FEATURE[f.type]?.label ?? f.type}
+                      </span>
+                    </td>
+                    <td>{f.douleur}</td>
+                    <td>{f.pourquoi_absent_chez_eux ?? "—"}</td>
+                    <td>{f.effort ?? "—"}</td>
+                    <td>{f.argument_vente ?? "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
 
       <h2>La proposition finale (après 3 tours adversariaux)</h2>
@@ -108,21 +168,23 @@ export default async function ViabilitePage({ params }: { params: Promise<{ id: 
       )}
 
       <h2>Les 4 critiques indépendants</h2>
-      <div className="tablewrap">
-        <table>
-          <thead>
-            <tr><th>Dimension</th><th>Score</th><th>Raison</th></tr>
-          </thead>
-          <tbody>
-            {(d.critiques ?? []).map((c) => (
-              <tr key={c.dimension}>
-                <td><b>{c.dimension}</b>{c.kill && <span className="danger"> · KILL</span>}</td>
-                <td className={c.score >= 55 ? "ok" : c.score >= 40 ? "warn" : "danger"}>{c.score}</td>
-                <td>{c.raison}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <div className="cols">
+        {(d.critiques ?? []).map((c) => {
+          const cls = c.score >= 55 ? "ok" : c.score >= 40 ? "warn" : "danger";
+          return (
+            <div className="card" key={c.dimension}>
+              <h3>
+                {c.dimension}
+                {c.kill && <span className="danger"> · KILL</span>}
+              </h3>
+              <div className="meter" role="img" aria-label={`score ${c.score} sur 100`}>
+                <div className={`fill ${cls}-bg`} style={{ width: `${c.score}%` }} />
+              </div>
+              <p className={`big ${cls}`}>{c.score}</p>
+              <p className="src">{c.raison}</p>
+            </div>
+          );
+        })}
       </div>
 
       {(d.sherlocking ?? []).length > 0 && (

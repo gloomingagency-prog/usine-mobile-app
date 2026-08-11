@@ -55,7 +55,12 @@ export default async function IdeesPage({
       </p>
 
       {fait === "ajout" && <div className="toast ok" role="status">Idée ajoutée à la file.</div>}
-      {fait && fait !== "ajout" && <div className="toast ok" role="status">Idée triée.</div>}
+      {fait === "relance" && (
+        <div className="toast ok" role="status">Analyse relancée — nouveau dossier dans l&apos;heure.</div>
+      )}
+      {fait && fait !== "ajout" && fait !== "relance" && (
+        <div className="toast ok" role="status">Idée triée.</div>
+      )}
 
       <details className="card manual-idea">
         <summary>+ Ajouter une idée à la main</summary>

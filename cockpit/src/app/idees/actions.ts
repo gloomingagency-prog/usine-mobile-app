@@ -33,6 +33,17 @@ export async function ajouterIdee(formData: FormData) {
   redirect("/idees?fait=ajout");
 }
 
+export async function relancerAnalyse(formData: FormData) {
+  const id = String(formData.get("id") ?? "");
+  if (!id) return;
+  const db = getDb();
+  if (!db) return;
+  // Supprimer le dossier remet l'idée dans la file du gate (cron horaire).
+  await db.delete(schema.viabilityReports).where(eq(schema.viabilityReports.ideaId, id));
+  await db.update(schema.ideas).set({ status: "a_analyser" }).where(eq(schema.ideas.id, id));
+  redirect(`/idees?fait=relance`);
+}
+
 export async function trierIdee(formData: FormData) {
   const id = String(formData.get("id") ?? "");
   const statut = String(formData.get("statut") ?? "");

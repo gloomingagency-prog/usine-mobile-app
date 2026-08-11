@@ -113,6 +113,27 @@ export async function GET(req: NextRequest) {
     );
   }
 
+  // 3 · Verdicts de gate rendus dans les dernières 24 h
+  const verdicts = await db
+    .select()
+    .from(schema.viabilityReports)
+    .innerJoin(schema.ideas, eq(schema.ideas.id, schema.viabilityReports.ideaId))
+    .where(gt(schema.viabilityReports.createdAt, depuis))
+    .limit(10);
+  for (const { viability_reports: r, ideas: i } of verdicts) {
+    const base = "https://usine-cockpit.vercel.app";
+    const v = r.verdict.toUpperCase();
+    await alerter(
+      `verdict:${r.ideaId}`,
+      "info",
+      "gate-viabilite",
+      `Verdict du gate : <b>${v}</b> (p=${r.probability} %) pour « ${i.titre} ».<br/>` +
+        `<a href="${base}/viabilite/${encodeURIComponent(r.ideaId)}">Lire le dossier</a> · ` +
+        `<a href="${lienAction(base, r.ideaId, "retenue")}">Retenir → cadrage</a> · ` +
+        `<a href="${lienAction(base, r.ideaId, "ecartee")}">Écarter</a>`,
+    );
+  }
+
   // Test de plomberie explicite (?test=1) — jamais silencieux
   if (req.nextUrl.searchParams.get("test") === "1") {
     nouvelles.push({ id: "test", severity: "info", message: "E-mail de test de la veille — la plomberie fonctionne." });

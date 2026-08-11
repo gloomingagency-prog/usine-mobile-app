@@ -61,7 +61,13 @@ Implémentation directe de la skill `product-wedge-analysis` :
    contre une liste codée des capacités natives iOS/Android.
 4. Les 3 filtres de durabilité : récurrent (pas one-shot), conscient
    (pas latent), durable (pas un pic).
-5. Killer feature nommée + critères d'acceptance testables.
+5. Killer feature nommée + critères d'acceptance testables — et la
+   **liste des features différenciantes** (directive utilisateur
+   2026-08-11) : chaque feature que NOUS apportons, ancrée dans une
+   douleur réelle citée, avec « pourquoi eux ne l'ont pas », effort et
+   **argument de vente**. C'est la proposition de valeur administrable
+   du dossier — et la matière commerciale réutilisable (fiche store,
+   paywall, éventuel modèle usine-service).
 6. ≥ 3 tours adversariaux + 4 critiques indépendants (distribution,
    produit, économie, durabilité) → probabilité agrégée **par code**.
 7. Verdict `go / pivot / kill` calculé par seuils. `go` → **gate humain**

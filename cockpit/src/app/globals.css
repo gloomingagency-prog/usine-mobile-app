@@ -184,6 +184,12 @@ input:focus-visible, select:focus-visible { outline: 2px solid var(--accent); ou
 .costform label { display: grid; gap: 0.25rem; font-size: 0.85rem; color: var(--muted); font-weight: 600; }
 .decision form input[name="commentaire"] { flex: 1 1 14rem; }
 
+.meter { height: 0.5rem; background: var(--bg); border: 1px solid var(--line); border-radius: 99px; overflow: hidden; }
+.meter .fill { height: 100%; border-radius: 99px; }
+.fill.ok-bg { background: var(--go); }
+.fill.warn-bg { background: var(--warn); }
+.fill.danger-bg { background: var(--danger); }
+
 .dot { display: inline-block; width: 0.55rem; height: 0.55rem; border-radius: 99px; margin-right: 0.4rem; vertical-align: middle; }
 .dot-ia { background: var(--accent); }
 .dot-build { background: #5B7FBF; }
