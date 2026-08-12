@@ -52,7 +52,14 @@ l'argent.**
    décote données maigres) — jamais laissés à l'appréciation du modèle.
 9. **Un push n'est jamais une mise en ligne** : vérifier l'état READY du
    déploiement, puis tester les routes en prod (401 sans auth, 200 avec).
-10. **Grouper les commits** (quotas Vercel : les déploiements CLI partent
+10. **Banc d'auto-test AVANT toute remise à l'utilisateur** (incident
+    2026-08-12 : 5 erreurs essuyées par l'utilisateur qui servait de
+    banc de test). Émulateur Android du Mac (`~/Library/Android/sdk`,
+    AVD flutter_emulator headless) + APK EAS + Metro : dérouler le
+    parcours en captures adb (`input tap/text`, `screencap`), y compris
+    OFFLINE (`svc wifi disable`). L'utilisateur ne teste que ce qui a
+    été VU fonctionner.
+11. **Grouper les commits** (quotas Vercel : les déploiements CLI partent
     à chaque `deploy`, pas à chaque push tant que l'app GitHub Vercel
     n'est pas installée).
 
