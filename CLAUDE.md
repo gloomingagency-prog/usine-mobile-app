@@ -18,7 +18,7 @@ l'argent.**
   calcule le verdict go/pivot/kill.
 - `TRAME_PROJET_MOBILE/` — méthode (auto-ignorée de git, ne jamais commiter).
 - **Les apps du portfolio vivent dans `/Users/mehdi/code/usine-apps/<nom>/`**
-  (un repo par app, D3) — première entrée : `neomind` (app existante de
+  (un repo par app, D3) — première entrée : `promptlandia` (ex-NeoMind, app existante de
   l'utilisateur, idée `MANUELLE:neomind` au gate avec codeSpark Academy
   comme référence de minage).
 - VPS : `ssh -i ~/.ssh/usine_vps ubuntu@145.239.79.21` (déploiement par
