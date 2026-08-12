@@ -41,6 +41,21 @@ async function fetchStatus() {
   }
 }
 
+// Santé des BFF des apps du portfolio (même philosophie : vérifier le
+// VÉCU — un fetch réel — pas une hypothèse de bon fonctionnement).
+const BFFS: { nom: string; url: string }[] = [
+  { nom: "PromptLandia BFF", url: "https://promptlandia-bff.vercel.app/api/health" },
+];
+
+async function checkBff(url: string): Promise<boolean> {
+  try {
+    const r = await fetch(url, { signal: AbortSignal.timeout(5000), cache: "no-store" });
+    return r.ok;
+  } catch {
+    return false;
+  }
+}
+
 function ageLabel(ms: number): string {
   const min = Math.round(ms / 60000);
   if (min < 60) return `il y a ${min} min`;
@@ -71,6 +86,17 @@ export default async function StatutPage() {
           <h3>Cockpit</h3>
           <p className="ok">En ligne</p>
         </div>
+        {await Promise.all(
+          BFFS.map(async (b) => {
+            const ok = await checkBff(b.url);
+            return (
+              <div className="card" key={b.nom}>
+                <h3>{b.nom}</h3>
+                <p className={ok ? "ok" : "danger"}>{ok ? "Opérationnel" : "Injoignable"}</p>
+              </div>
+            );
+          }),
+        )}
       </div>
 
       <h2>Agents & crons ({jobs.length})</h2>
