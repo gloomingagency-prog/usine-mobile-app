@@ -22,6 +22,8 @@ export const apps = pgTable("apps", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
   status: appStatus("status").notNull().default("idea"),
+  // Liens et suivi de la fiche : { repoUrl, ideaId, maillons: [{code, titre, fait}] }
+  meta: jsonb("meta"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

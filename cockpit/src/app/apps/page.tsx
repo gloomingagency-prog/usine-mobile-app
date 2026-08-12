@@ -1,23 +1,8 @@
+import Link from "next/link";
 import { getDb, schema } from "@/db";
+import { STATUS_LABEL, statusBadgeClass } from "@/lib/app-status";
 
 export const dynamic = "force-dynamic";
-
-const STATUS_LABEL: Record<string, string> = {
-  idea: "Idée",
-  analyzing: "En analyse",
-  killed: "Tuée",
-  pivot: "À pivoter",
-  viable: "Viable",
-  scoping: "Cadrage",
-  building: "En build",
-  internal_testing: "Test interne",
-  store_review: "En review",
-  rejected: "Rejetée",
-  live: "Live",
-  improving: "En amélioration",
-  sunset_proposed: "Sunset proposé",
-  sunset: "Sunset",
-};
 
 export default async function AppsPage() {
   const db = getDb();
@@ -29,50 +14,48 @@ export default async function AppsPage() {
       <h1>Apps</h1>
       <p className="meta">
         Chaque app traverse la machine à états du pipeline — de l&apos;idée au sunset.
+        La composition cible (D9) : ~70 % compounding · 20 % cash · 10 % loterie.
       </p>
 
       {rows === null && (
         <div className="notice">
-          Base non configurée (<code>DATABASE_URL</code> absent — .env à venir).
+          Base non configurée (<code>DATABASE_URL</code> absent).
         </div>
       )}
 
       {(rows === null || rows.length === 0) && (
         <div className="empty">
           <p>Aucune app pour l&apos;instant.</p>
-          <p>
-            La première entrera par le <b>Radar</b> (étage 0) une fois les niches cibles
-            validées (décision D6) — puis traversera le gate de viabilité avant toute
-            ligne de code.
-          </p>
         </div>
       )}
 
       {rows !== null && rows.length > 0 && (
-        <div className="tablewrap">
-          <table>
-            <thead>
-              <tr>
-                <th>App</th>
-                <th>Statut</th>
-                <th>Créée le</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((a) => (
-                <tr key={a.id}>
-                  <td>
-                    <b>{a.name}</b>
-                  </td>
-                  <td>
-                    <span className="badge decidee">{STATUS_LABEL[a.status] ?? a.status}</span>
-                  </td>
-                  <td>{a.createdAt.toISOString().slice(0, 10)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <ul className="doclist">
+          {rows.map((a) => {
+            const meta = (a.meta ?? {}) as { maillons?: { fait: boolean }[] };
+            const maillons = meta.maillons ?? [];
+            const faits = maillons.filter((m) => m.fait).length;
+            return (
+              <li key={a.id}>
+                <Link href={`/apps/${encodeURIComponent(a.id)}`}>
+                  <span className="card">
+                    <b>
+                      {a.name}{" "}
+                      <span className={`badge ${statusBadgeClass(a.status)}`}>
+                        {STATUS_LABEL[a.status] ?? a.status}
+                      </span>
+                    </b>
+                    <span>
+                      créée le {a.createdAt.toISOString().slice(0, 10)}
+                      {maillons.length > 0 && ` · maillons : ${faits}/${maillons.length}`}
+                      {" · fiche complète →"}
+                    </span>
+                  </span>
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
       )}
     </>
   );
