@@ -6,9 +6,11 @@ import { getDb, schema } from "@/db";
 export const dynamic = "force-dynamic";
 
 import { STATUS_LABEL, statusBadgeClass } from "@/lib/app-status";
+import { basculerMaillon } from "./actions";
 
 type Maillon = { code: string; titre: string; fait: boolean };
-type Meta = { repoUrl?: string; ideaId?: string; maillons?: Maillon[] };
+type Attente = { texte: string; qui: string; fait?: boolean };
+type Meta = { repoUrl?: string; ideaId?: string; maillons?: Maillon[]; attentes?: Attente[] };
 
 export default async function AppFichePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -74,18 +76,57 @@ export default async function AppFichePage({ params }: { params: Promise<{ id: s
           <h2>
             Maillons <span className="count">({faits}/{maillons.length})</span>
           </h2>
+          <div className="meter" role="img" aria-label={`${faits} maillons sur ${maillons.length}`}>
+            <div
+              className={`fill ${faits === maillons.length ? "ok-bg" : "warn-bg"}`}
+              style={{ width: `${Math.max((faits / maillons.length) * 100, 4)}%` }}
+            />
+          </div>
           <div className="tablewrap">
             <table>
               <tbody>
                 {maillons.map((m) => (
                   <tr key={m.code}>
-                    <td style={{ width: "4rem" }}>
+                    <td style={{ width: "3.5rem" }}>
                       <b>{m.code}</b>
                     </td>
                     <td>{m.titre}</td>
-                    <td style={{ width: "7rem" }}>
-                      <span className={`badge ${m.fait ? "validee" : "a_valider"}`}>
-                        {m.fait ? "fait" : "à faire"}
+                    <td style={{ width: "10rem" }}>
+                      <form action={basculerMaillon} style={{ display: "inline" }}>
+                        <input type="hidden" name="appId" value={app.id} />
+                        <input type="hidden" name="code" value={m.code} />
+                        {m.fait ? (
+                          <>
+                            <span className="badge validee">fait</span>{" "}
+                            <button type="submit">rouvrir</button>
+                          </>
+                        ) : (
+                          <button className="primary" type="submit">
+                            marquer fait
+                          </button>
+                        )}
+                      </form>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+
+      {(meta.attentes ?? []).length > 0 && (
+        <>
+          <h2>Qui-fait-quoi — actions attendues</h2>
+          <div className="tablewrap">
+            <table>
+              <tbody>
+                {(meta.attentes ?? []).map((a, i) => (
+                  <tr key={i}>
+                    <td>{a.texte}</td>
+                    <td style={{ width: "8rem" }}>
+                      <span className={`badge ${a.fait ? "validee" : a.qui === "toi" ? "a_valider" : "decidee"}`}>
+                        {a.fait ? "reçu ✓" : a.qui}
                       </span>
                     </td>
                   </tr>
