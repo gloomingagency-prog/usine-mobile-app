@@ -48,7 +48,8 @@ export async function middleware(req: NextRequest) {
 export const config = {
   // Public : statut (lecture seule), veille (CRON_SECRET), idee-action
   // (signature HMAC), login (le point d'entrée), assets Next.
+  // /api/eas-webhook est protégé par signature HMAC-SHA1 (expo-signature).
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|icon.svg|statut|login|api/veille|api/idee-action).*)",
+    "/((?!_next/static|_next/image|favicon.ico|icon.svg|statut|login|api/veille|api/idee-action|api/eas-webhook).*)",
   ],
 };

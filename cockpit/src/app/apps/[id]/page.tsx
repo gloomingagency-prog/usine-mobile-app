@@ -10,7 +10,21 @@ import { basculerMaillon } from "./actions";
 
 type Maillon = { code: string; titre: string; fait: boolean };
 type Attente = { texte: string; qui: string; fait?: boolean };
-type Meta = { repoUrl?: string; ideaId?: string; maillons?: Maillon[]; attentes?: Attente[] };
+type LastBuild = {
+  platform?: string;
+  status?: string;
+  url?: string;
+  artifact?: string;
+  at?: string;
+  erreur?: string | null;
+};
+type Meta = {
+  repoUrl?: string;
+  ideaId?: string;
+  maillons?: Maillon[];
+  attentes?: Attente[];
+  lastBuild?: LastBuild;
+};
 
 export default async function AppFichePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -70,6 +84,41 @@ export default async function AppFichePage({ params }: { params: Promise<{ id: s
           </>
         )}
       </p>
+
+      {meta.lastBuild && (
+        <div className="card decision">
+          <div className="head">
+            <b>Dernier build</b>
+            <span className="id">{meta.lastBuild.platform}</span>
+            <span
+              className={`badge ${
+                meta.lastBuild.status === "finished"
+                  ? "validee"
+                  : meta.lastBuild.status === "errored"
+                    ? "refusee"
+                    : "a_valider"
+              }`}
+            >
+              {meta.lastBuild.status}
+            </span>
+            {meta.lastBuild.at && <span className="id">{meta.lastBuild.at.slice(0, 16).replace("T", " ")} UTC</span>}
+          </div>
+          <p className="detail">
+            {meta.lastBuild.artifact && (
+              <>
+                <a href={meta.lastBuild.artifact}>Installer (APK)</a>
+                {" · "}
+              </>
+            )}
+            {meta.lastBuild.url && (
+              <a href={meta.lastBuild.url} target="_blank" rel="noreferrer">
+                page du build
+              </a>
+            )}
+            {meta.lastBuild.erreur && <span className="danger"> {meta.lastBuild.erreur}</span>}
+          </p>
+        </div>
+      )}
 
       {maillons.length > 0 && (
         <>
