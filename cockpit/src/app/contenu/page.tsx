@@ -52,9 +52,50 @@ function StepPreview({ step }: { step: LessonStep }) {
       </li>
     );
   }
+  if (step.type === "build_prompt") {
+    return (
+      <li>
+        <span className="id">build_prompt ({step.mode})</span> {step.instruction}
+        <ul>
+          <li>chips : {step.chips.join(" · ")}</li>
+          <li>
+            <b>✓ solution : {step.correct_indices.map((i) => step.chips[i]).join(" ")}</b>
+          </li>
+          <li className="detail">↳ {step.explanation}</li>
+        </ul>
+      </li>
+    );
+  }
+  if (step.type === "sort_order") {
+    return (
+      <li>
+        <span className="id">sort_order</span> {step.instruction}
+        <ul>
+          <li>affiché : {step.items.join(" · ")}</li>
+          <li>
+            <b>✓ ordre : {step.correct_order.map((i) => step.items[i]).join(" → ")}</b>
+          </li>
+        </ul>
+      </li>
+    );
+  }
+  if (step.type === "fill_blank") {
+    return (
+      <li>
+        <span className="id">fill_blank</span> {step.sentence}
+        <ul>
+          {step.options.map((o, i) => (
+            <li key={i}>{i === step.correct_index ? <b>✓ {o}</b> : o}</li>
+          ))}
+          <li className="detail">↳ {step.explanation}</li>
+        </ul>
+      </li>
+    );
+  }
   return (
     <li>
       <span className="id">try_it</span> {step.instruction}
+      {step.example ? <span className="detail"> — exemple : {step.example}</span> : null}
     </li>
   );
 }
@@ -62,11 +103,17 @@ function StepPreview({ step }: { step: LessonStep }) {
 function QaBadge({ report }: { report: QaReport | null }) {
   const ia = report?.qa_ia;
   if (!ia) return null;
-  const scores = [ia.adapte_6_12, ia.factuel, ia.ton_positif, ia.anglais].map((n) => Number(n) || 0);
+  // v2 (leçons riches) : 7 dimensions, seuil relevé à 80 ; v1 : 4 et 70.
+  const v2 = (report?.version ?? 1) >= 2;
+  const scores = (v2
+    ? [ia.adapte_6_12, ia.factuel, ia.ton_positif, ia.anglais, ia.interessant, ia.narration, ia.jeux]
+    : [ia.adapte_6_12, ia.factuel, ia.ton_positif, ia.anglais]
+  ).map((n) => Number(n) || 0);
   const min = Math.min(...scores);
+  const seuil = v2 ? 80 : 70;
   return (
-    <span className={`badge ${min >= 70 ? "validee" : "refusee"}`}>
-      QA IA min {min}/100
+    <span className={`badge ${min >= seuil ? "validee" : "refusee"}`}>
+      QA IA min {min}/100 (seuil {seuil})
     </span>
   );
 }
@@ -84,12 +131,28 @@ function DraftCard({ draft, pathTitle }: { draft: LessonDraft; pathTitle: string
         <span className={`badge ${BADGE_CLASS[draft.status]}`}>{STATUT_LABEL[draft.status]}</span>
         <QaBadge report={report} />
         <span className="id">source : {draft.source}</span>
+        {draft.enriches_lesson_id && (
+          <span className="badge a_valider">
+            ENRICHIT <code>{draft.enriches_lesson_id.slice(0, 8)}…</code> — la publication REMPLACE
+            ses steps
+          </span>
+        )}
       </div>
       {ia && (
         <p className="detail">
           adapté 6-12 : {ia.adapte_6_12 ?? "?"} · factuel : {ia.factuel ?? "?"} · ton :{" "}
           {ia.ton_positif ?? "?"} · anglais : {ia.anglais ?? "?"}
+          {ia.interessant != null &&
+            ` · intéressant : ${ia.interessant} · narration : ${ia.narration ?? "?"} · jeux : ${ia.jeux ?? "?"}`}
           {report?.seuils ? ` — ${report.seuils}` : ""}
+        </p>
+      )}
+      {report?.critique_adversariale && (
+        <p className="detail">
+          Boucle adversariale : intéressant {report.critique_adversariale.interessant ?? "?"} · jeux{" "}
+          {report.critique_adversariale.jeux ?? "?"} · narration{" "}
+          {report.critique_adversariale.narration ?? "?"}
+          {report.critique_adversariale.revise ? " — leçon RÉVISÉE après critique" : " — pas de révision nécessaire"}
         </p>
       )}
       {(report?.regles_code?.erreurs ?? []).length > 0 && (
@@ -145,7 +208,7 @@ export default async function ContenuPage({
   const drafts = sql
     ? ((await sql`
         select id, path_id, title, order_index, steps, status, qa_report,
-               source, published_lesson_id, created_at
+               source, published_lesson_id, enriches_lesson_id, created_at
         from lesson_drafts
         order by created_at desc`) as unknown as LessonDraft[])
     : null;

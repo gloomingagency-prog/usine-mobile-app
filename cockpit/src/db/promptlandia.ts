@@ -12,7 +12,7 @@ export function getPromptlandiaDb() {
 }
 
 // Étape de leçon interactive — miroir EXACT du type LessonStep de
-// PromptLandia (apps/expo/utils/learning.ts).
+// PromptLandia (apps/expo/utils/learning.ts), v2 mini-jeux compris.
 export type LessonStep =
   | { type: "text"; content: string }
   | {
@@ -23,19 +23,53 @@ export type LessonStep =
       explanation: string;
     }
   | { type: "tap_reveal"; prompt: string; reveal: string }
-  | { type: "try_it"; instruction: string };
+  | { type: "try_it"; instruction: string; example?: string }
+  | {
+      type: "build_prompt";
+      instruction: string;
+      chips: string[];
+      correct_indices: number[];
+      mode: "ordered" | "anyorder";
+      explanation: string;
+    }
+  | {
+      type: "sort_order";
+      instruction: string;
+      items: string[];
+      correct_order: number[];
+      explanation: string;
+    }
+  | {
+      type: "fill_blank";
+      sentence: string;
+      options: string[];
+      correct_index: number;
+      explanation: string;
+    };
 
 export type QaReport = {
+  version?: number;
   regles_code?: {
     ok?: boolean;
     erreurs?: string[];
     compte?: Record<string, number>;
+  };
+  // v2 : trace de la boucle qualité adversariale (critique → révision).
+  critique_adversariale?: {
+    interessant?: number;
+    jeux?: number;
+    narration?: number;
+    reproches?: string[];
+    revise?: boolean;
   };
   qa_ia?: {
     adapte_6_12?: number;
     factuel?: number;
     ton_positif?: number;
     anglais?: number;
+    interessant?: number;
+    narration?: number;
+    jeux?: number;
     problemes?: string[];
   };
   verdict?: string;
@@ -54,5 +88,9 @@ export type LessonDraft = {
   qa_report: QaReport | null;
   source: string;
   published_lesson_id: string | null;
+  // v2 — mode enrichissement : id de la leçon publiée dont ce draft est
+  // la version riche ; à la publication, ses steps sont REMPLACÉS
+  // (update) au lieu d'insérer une nouvelle leçon.
+  enriches_lesson_id: string | null;
   created_at: string | null;
 };

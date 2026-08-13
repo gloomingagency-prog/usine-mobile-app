@@ -27,13 +27,18 @@ export async function rejeterDraft(formData: FormData) {
 }
 
 /** Contenu markdown de secours (player texte) reconstruit depuis les
- *  steps — les quiz restent dans steps, jamais dans le texte. */
+ *  steps — les quiz et jeux restent dans steps, jamais dans le texte. */
 function contenuDepuisSteps(steps: LessonStep[]): string {
   const blocs: string[] = [];
   for (const s of steps) {
     if (s.type === "text") blocs.push(s.content);
     else if (s.type === "tap_reveal") blocs.push(`> 💡 **Fun Fact:** ${s.reveal}`);
     else if (s.type === "try_it") blocs.push(`✏️ **Exercise:** ${s.instruction}`);
+    // Jeux v2 : l'instruction seule passe dans le texte de secours —
+    // jamais la solution (le player texte reste lisible sans spoiler).
+    else if (s.type === "build_prompt" || s.type === "sort_order")
+      blocs.push(`🎮 **Game:** ${s.instruction}`);
+    else if (s.type === "fill_blank") blocs.push(`✏️ **Fill the blank:** ${s.sentence}`);
   }
   return blocs.join("\n\n");
 }
@@ -42,6 +47,11 @@ function contenuDepuisSteps(steps: LessonStep[]): string {
 // « réclamé » (update conditionné à status='approved') — un double clic ou
 // un run concurrent ne réclame rien et n'insère donc rien deux fois ; un
 // draft published ne repasse jamais dans lessons.
+// Deux chemins :
+// - draft normal            → INSERT d'une nouvelle leçon à la suite ;
+// - draft d'ENRICHISSEMENT  → UPDATE : REMPLACE les steps (et le contenu
+//   de secours) de la leçon d'origine (enriches_lesson_id). Qualité avant
+//   quantité : une leçon fine ne se duplique pas, elle s'enrichit.
 export async function publierApprouves() {
   const sql = getPromptlandiaDb();
   if (!sql) redirect("/contenu");
@@ -56,26 +66,47 @@ export async function publierApprouves() {
     const reclame = (await sql`
       update lesson_drafts set status = 'published'
       where id = ${d.id} and status = 'approved'
-      returning id, path_id, title, steps`) as {
+      returning id, path_id, title, steps, enriches_lesson_id`) as {
       id: string;
       path_id: string;
       title: string;
       steps: LessonStep[];
+      enriches_lesson_id: string | null;
     }[];
     if (reclame.length === 0) continue; // déjà publié par un run concurrent
 
     const draft = reclame[0];
-    // 2 · order_index À LA SUITE du parcours, calculé au moment de publier.
-    const [{ prochain }] = (await sql`
-      select coalesce(max(order_index), 0) + 1 as prochain
-      from lessons where path_id = ${draft.path_id}`) as { prochain: number }[];
-    const [lecon] = (await sql`
-      insert into lessons (path_id, title, content, steps, order_index)
-      values (${draft.path_id}, ${draft.title}, ${contenuDepuisSteps(draft.steps)},
-              ${JSON.stringify(draft.steps)}, ${prochain})
-      returning id`) as { id: string }[];
-    // 3 · Traçabilité draft → leçon publiée.
-    await sql`update lesson_drafts set published_lesson_id = ${lecon.id} where id = ${draft.id}`;
+
+    if (draft.enriches_lesson_id) {
+      // 2a · ENRICHISSEMENT : remplacer les steps de la leçon d'origine
+      // (titre et order_index inchangés — même leçon, en mieux).
+      const misesAJour = (await sql`
+        update lessons
+        set steps = ${JSON.stringify(draft.steps)},
+            content = ${contenuDepuisSteps(draft.steps)}
+        where id = ${draft.enriches_lesson_id}
+        returning id`) as { id: string }[];
+      if (misesAJour.length === 0) {
+        // Leçon d'origine disparue : on rend le draft à la validation
+        // humaine plutôt que d'inventer une insertion.
+        await sql`update lesson_drafts set status = 'qa_rejected' where id = ${draft.id}`;
+        continue;
+      }
+      await sql`update lesson_drafts set published_lesson_id = ${draft.enriches_lesson_id} where id = ${draft.id}`;
+    } else {
+      // 2b · Nouvelle leçon : order_index À LA SUITE du parcours, calculé
+      // au moment de publier.
+      const [{ prochain }] = (await sql`
+        select coalesce(max(order_index), 0) + 1 as prochain
+        from lessons where path_id = ${draft.path_id}`) as { prochain: number }[];
+      const [lecon] = (await sql`
+        insert into lessons (path_id, title, content, steps, order_index)
+        values (${draft.path_id}, ${draft.title}, ${contenuDepuisSteps(draft.steps)},
+                ${JSON.stringify(draft.steps)}, ${prochain})
+        returning id`) as { id: string }[];
+      // 3 · Traçabilité draft → leçon publiée.
+      await sql`update lesson_drafts set published_lesson_id = ${lecon.id} where id = ${draft.id}`;
+    }
     pathsTouches.add(draft.path_id);
     publies++;
   }
