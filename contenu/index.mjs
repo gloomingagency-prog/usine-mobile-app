@@ -208,7 +208,7 @@ function normaliserSteps(bruts) {
   return { steps, erreurs };
 }
 
-import { qaRegleCode, SEUIL_SCORE_IA } from "./regles.mjs";
+import { qaRegleCode, SEUIL_SCORE_IA, reparerStructure } from "./regles.mjs";
 
 function verdictQa(regles, qaIa) {
   const scores = {
@@ -333,8 +333,13 @@ async function qaFinal(brouillon, titresExclus) {
   // valident le format JOUEUR final, celui qui part réellement en base.
   console.log(`  [4/4] QA final (normalisation code + règles + contre-lecture IA)…`);
   const { steps, erreurs: erreursNorm } = normaliserSteps(brouillon.steps);
-  const normalise = { title: brouillon.title, steps: steps ?? [] };
+  // Réparation déterministe des violations mécaniques (textes trop longs,
+  // jeu secondaire en double) AVANT les règles — le fond reste rejetable.
+  const { steps: stepsRepares, reparations } = reparerStructure(steps ?? []);
+  if (reparations.length) console.log(`      réparation code : ${reparations.join(" ; ")}`);
+  const normalise = { title: brouillon.title, steps: stepsRepares };
   const regles = qaRegleCode(normalise, titresExclus);
+  regles.reparations = reparations;
   regles.erreurs.unshift(...erreursNorm);
   if (erreursNorm.length) regles.ok = false;
 

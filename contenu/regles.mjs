@@ -29,6 +29,92 @@ const uniques = (arr) => new Set(arr.map((o) => String(o).trim().toLowerCase()))
 
 export const SEUIL_SCORE_IA = 80;
 
+// --- Réparation déterministe AVANT QA -----------------------------------
+// Constat (runs lp-5 des 2026-08-13/14) : DeepSeek viole systématiquement
+// deux contraintes pourtant explicites du prompt — textes > 3 phrases et
+// sort_order + fill_blank ensemble. Plutôt que re-payer des générations,
+// le CODE répare ce qui est mécanique ; ce qui touche au fond (quiz
+// manquant, vocabulaire, scores IA) reste un rejet.
+
+// Découpe un texte en phrases SANS altérer le contenu : on masque les
+// points non terminaux (abréviations, e.g., décimales) par un caractère
+// de même longueur, on repère les frontières sur la version masquée et
+// on découpe l'original aux mêmes positions.
+function decouperEnPhrases(texte) {
+  const masque = String(texte)
+    .replace(/\b(Mr|Mrs|Ms|Dr|St|Prof|vs|etc)\./gi, (m) => m.slice(0, -1) + "•")
+    .replace(/\b(e\.g|i\.e)\./gi, (m) => m.replace(/\./g, "•"))
+    .replace(/(\d)\.(\d)/g, "$1•$2");
+  const phrases = [];
+  let debut = 0;
+  const re = /[.!?…]+(?=\s|$)/g;
+  let m;
+  while ((m = re.exec(masque))) {
+    const fin = m.index + m[0].length;
+    const p = String(texte).slice(debut, fin).trim();
+    if (p) phrases.push(p);
+    debut = fin;
+  }
+  const reste = String(texte).slice(debut).trim();
+  if (reste) phrases.push(reste);
+  return phrases;
+}
+
+/**
+ * Répare les violations MÉCANIQUES de structure ; retourne
+ * { steps, reparations } — `reparations` liste ce qui a été fait (à
+ * consigner dans le rapport QA). Jamais de réparation qui créerait une
+ * autre violation : dans le doute, on laisse et le QA tranche.
+ */
+export function reparerStructure(steps) {
+  if (!Array.isArray(steps)) return { steps, reparations: [] };
+  const reparations = [];
+  const resultat = [...steps];
+  const estSecondaire = (s) => s?.type === "sort_order" || s?.type === "fill_blank";
+  const estJouable = (s) => ["quiz", "build_prompt", "sort_order", "fill_blank"].includes(s?.type);
+
+  // 1 · EXACTEMENT 1 jeu secondaire (sort_order OU fill_blank) : on retire
+  // les excédents en partant de la FIN (le premier s'insère généralement
+  // mieux dans la narration), sans faire tomber les jouables sous 4.
+  let nbSecondaires = resultat.filter(estSecondaire).length;
+  let jouables = resultat.filter(estJouable).length;
+  while (nbSecondaires > 1 && jouables > 4) {
+    const idx = resultat.findLastIndex(estSecondaire);
+    reparations.push(`étape ${idx + 1} (${resultat[idx].type}) retirée — un seul jeu secondaire autorisé`);
+    resultat.splice(idx, 1);
+    nbSecondaires--;
+    jouables--;
+  }
+
+  // 2 · text > 3 phrases : découpe équilibrée en étapes consécutives,
+  // dans les plafonds globaux (12 étapes, 6 text).
+  for (let i = 0; i < resultat.length; i++) {
+    const s = resultat[i];
+    if (s?.type !== "text" || typeof s.content !== "string") continue;
+    const phrases = decouperEnPhrases(s.content);
+    if (nbPhrases(s.content) <= 3 || phrases.length < 2) continue;
+    const nbMorceaux = Math.ceil(phrases.length / 3);
+    const totalApres = resultat.length + nbMorceaux - 1;
+    const textApres = resultat.filter((x) => x?.type === "text").length + nbMorceaux - 1;
+    if (totalApres > 12 || textApres > 6) continue; // plus de place — rejet honnête
+    const morceaux = [];
+    const base = Math.floor(phrases.length / nbMorceaux);
+    const extra = phrases.length % nbMorceaux;
+    let pos = 0;
+    for (let k = 0; k < nbMorceaux; k++) {
+      const taille = base + (k < extra ? 1 : 0);
+      morceaux.push(phrases.slice(pos, pos + taille).join(" "));
+      pos += taille;
+    }
+    if (morceaux.some((mo) => nbPhrases(mo) > 3 || mo.length > MAX_TEXT_CHARS)) continue;
+    reparations.push(`étape ${i + 1} (text) : ${phrases.length} phrases découpées en ${nbMorceaux} étapes`);
+    resultat.splice(i, 1, ...morceaux.map((content) => ({ ...s, content })));
+    i += nbMorceaux - 1;
+  }
+
+  return { steps: resultat, reparations };
+}
+
 export function qaRegleCode(brouillon, titresExistants) {
   const erreurs = [];
   const compte = { text: 0, quiz: 0, tap_reveal: 0, try_it: 0, build_prompt: 0, sort_order: 0, fill_blank: 0, autre: 0 };
