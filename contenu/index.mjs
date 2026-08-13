@@ -217,7 +217,18 @@ const VOCAB_INTERDIT = [
   ["lien externe", /\b(https?:\/\/|www\.|\.com\b|\.org\b|\.net\b|youtube|tiktok|instagram|facebook)\b/i],
 ];
 
-const nbPhrases = (t) => String(t).split(/[.!?]+/).filter((p) => p.trim().length > 1).length;
+// Compteur de phrases — les abréviations d'usage (Mr./Ms./Dr.…), les
+// « e.g./i.e. », les points de suspension et les décimales ne terminent
+// PAS une phrase (bug réel, run 2026-08-13 : « Mr. Owl, Ms. Fox, and
+// Dr. Penguin » compté 3 phrases de trop → rejets à tort).
+const nbPhrases = (t) =>
+  String(t)
+    .replace(/\b(Mr|Mrs|Ms|Dr|St|Prof|vs|etc)\./gi, "$1")
+    .replace(/\b(e\.g|i\.e)\./gi, "$1")
+    .replace(/\.{2,}|…/g, ".")
+    .replace(/(\d)\.(\d)/g, "$1$2")
+    .split(/[.!?]+/)
+    .filter((p) => p.trim().length > 1).length;
 const uniques = (arr) => new Set(arr.map((o) => String(o).trim().toLowerCase())).size === arr.length;
 
 function qaRegleCode(brouillon, titresExistants) {
