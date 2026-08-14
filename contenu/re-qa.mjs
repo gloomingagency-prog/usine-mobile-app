@@ -6,18 +6,25 @@
 // les steps, la version réparée est PERSISTÉE (c'est elle qui a été
 // jugée — publier autre chose serait mentir au validateur humain).
 import { neon } from "@neondatabase/serverless";
-import { qaRegleCode, reparerStructure } from "./regles.mjs";
+import { qaRegleCode, reparerStructure, SEUILS_IA, SEUIL_SCORE_IA } from "./regles.mjs";
 
 const sql = neon(process.env.PROMPTLANDIA_DATABASE_URL ?? process.env.DATABASE_URL ?? "");
-const drafts = await sql`select id, title, steps, qa_report from lesson_drafts where status = 'qa_rejected'`;
+const drafts = await sql`select id, title, steps, qa_report, locale from lesson_drafts where status = 'qa_rejected'`;
 let flips = 0;
 for (const d of drafts) {
   const { steps, reparations } = reparerStructure(d.steps);
-  const regles = qaRegleCode({ title: d.title, steps }, []);
+  // La LANGUE du brouillon doit être passée : contrôler un brouillon
+  // français avec les règles anglaises signalait tout son texte comme
+  // « mélange de langues » et le laissait rejeté à tort.
+  const regles = qaRegleCode({ title: d.title, steps }, [], d.locale ?? "en");
   const erreurs = regles.erreurs ?? [];
   const scores = d.qa_report?.qa_ia ?? {};
-  const vals = Object.values(scores).filter((v) => typeof v === "number");
-  const iaOk = vals.length > 0 && vals.every((v) => v >= 80);
+  // Mêmes seuils différenciés que le générateur (SEUILS_IA) : un draft
+  // rejeté sous l'ancien seuil unique peut être parfaitement bon.
+  const entrees = Object.entries(scores).filter(([, v]) => typeof v === "number");
+  const iaOk =
+    entrees.length > 0 &&
+    entrees.every(([cle, v]) => v >= (SEUILS_IA[cle] ?? SEUIL_SCORE_IA));
   if (erreurs.length === 0 && iaOk) {
     const rapport = {
       ...d.qa_report,

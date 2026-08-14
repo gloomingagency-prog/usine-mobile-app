@@ -240,7 +240,7 @@ function normaliserSteps(bruts) {
   return { steps, erreurs };
 }
 
-import { qaRegleCode, SEUIL_SCORE_IA, reparerStructure } from "./regles.mjs";
+import { qaRegleCode, SEUIL_SCORE_IA, SEUILS_IA, reparerStructure } from "./regles.mjs";
 
 function verdictQa(regles, qaIa) {
   const scores = {
@@ -255,12 +255,19 @@ function verdictQa(regles, qaIa) {
     jeux: Number(qaIa.jeux_0_100) || 0,
   };
   const scoreMin = Math.min(...Object.values(scores));
-  const ok = regles.ok && scoreMin >= SEUIL_SCORE_IA;
+  // Chaque dimension a SON seuil (voir SEUILS_IA) : ce qui protège
+  // l'enfant est intransigeant, ce qui relève du métier tolère la
+  // sévérité du critique.
+  const sousSeuil = Object.entries(scores).filter(
+    ([cle, valeur]) => valeur < (SEUILS_IA[cle] ?? SEUIL_SCORE_IA),
+  );
+  const ok = regles.ok && sousSeuil.length === 0;
   return {
     status: ok ? "qa_ok" : "qa_rejected",
     scores,
     score_min: scoreMin,
-    methode: `verdict PAR CODE : qa_ok si 0 erreur de règle ET chaque score IA ≥ ${SEUIL_SCORE_IA} (v2 qualité d'abord)`,
+    sous_seuil: Object.fromEntries(sousSeuil),
+    methode: `verdict PAR CODE : qa_ok si 0 erreur de règle ET chaque score au-dessus de SON seuil ${JSON.stringify(SEUILS_IA)}`,
   };
 }
 
@@ -295,8 +302,9 @@ const STRUCTURE = `STRUCTURE OBLIGATOIRE (9 à 11 étapes, la variété fait le 
 // sur 40 — le format était décrit mais jamais MONTRÉ. Un exemple vaut
 // mieux qu'une consigne de plus.
 const EXEMPLE_JEUX = `EXEMPLE DE JEUX RÉUSSIS (inspire-toi de ce NIVEAU, pas du sujet) :
-{"type":"build_prompt","instruction":"Aide Milo à réussir le gâteau parfait !","correct_chips":["Agis comme un grand pâtissier","et donne","une recette étape par étape","pour un gâteau géant au chocolat"],"distractor_chips":["avec des paillettes","dans l'espace"],"mode":"ordered","explanation":"Parfait ! Tu as dit exactement QUI, QUOI et COMMENT — c'est ça, un prompt précis."}
-Ce qui en fait un BON jeu : les blocs assemblés forment une VRAIE phrase de prompt, utile et naturelle ; les leurres sont plausibles mais visiblement hors sujet ; l'explication nomme ce que l'enfant vient de comprendre.
+{"type":"build_prompt","instruction":"Aide Milo à réussir le gâteau parfait !","correct_chips":["Agis comme un grand pâtissier","et donne","une recette étape par étape","pour un gâteau géant au chocolat"],"distractor_chips":["une recette rapide","un gâteau surprise"],"mode":"ordered","explanation":"Parfait ! Tu as dit exactement QUI, QUOI et COMMENT — c'est ça, un prompt précis."}
+Ce qui en fait un BON jeu : les blocs assemblés forment une VRAIE phrase de prompt, utile et naturelle ; l'explication nomme ce que l'enfant vient de comprendre.
+LES LEURRES SE CHOISISSENT AVEC SOIN : ils doivent être PLAUSIBLES et grammaticalement compatibles, mais MOINS PRÉCIS que la bonne réponse (« une recette rapide » au lieu de « une recette étape par étape »). Un leurre ABSURDE (« dans l'espace », « et prépare le dîner ») ne fait rien apprendre : il se repère sans réfléchir et déroute l'enfant. Le jeu doit se gagner en comprenant, pas en éliminant le ridicule.
 {"type":"fill_blank","sentence":"Une demande vague donne n'importe quoi, mais une demande ___ donne exactement ce que tu veux.","correct":"précise","distractors":["drôle","forte"],"explanation":"Exact ! Une demande précise guide mieux l'IA."}
 Ce qui en fait un BON trou : le mot manquant est LE mot que la leçon vient d'enseigner, et un seul des choix est défendable.
 CE QUI FAIT UN MAUVAIS JEU (à éviter absolument) : des blocs qui ne forment pas une phrase naturelle ; un ordre discutable où plusieurs solutions se valent ; un trou dont deux réponses sont acceptables ; un jeu qui teste un détail au lieu de l'idée centrale.`;
@@ -315,7 +323,9 @@ const CONTRAT = `CONTRAT NON NÉGOCIABLE (vérifié par un PROGRAMME — toute v
 - chaque étape "text" : MAXIMUM 3 phrases. Si tu as plus à dire, DÉCOUPE en deux étapes "text" ;
 - "fill_blank" : la phrase contient EXACTEMENT un "___" (trois underscores, une seule fois) ;
 - JAMAIS "fill_blank" ET "sort_order" dans la même leçon : UN SEUL des deux ;
-- "try_it" est TOUJOURS la dernière étape et a TOUJOURS un "example".
+- "try_it" est TOUJOURS la dernière étape et a TOUJOURS un "example" ;
+- "sort_order" : l'ordre doit être INDISCUTABLE (chronologique ou causal — d'abord ceci, donc cela). Si deux ordres se défendent, le jeu est raté : change de sujet ;
+- "fill_blank" : une seule réponse doit être défendable. Si un adulte hésite, l'enfant est perdu.
 CHECKLIST AVANT DE RÉPONDRE (fais-la vraiment) : 1) compte tes étapes → entre 9 et 11 ; 2) compte les phrases de CHAQUE "text" → max 3 ; 3) un seul jeu fill_blank OU sort_order ; 4) le "___" apparaît une seule fois dans la phrase du fill_blank ; 5) aucun "your name", aucune donnée personnelle.`;
 
 const systemeRedaction = `Tu es un auteur JEUNESSE talentueux qui écrit des leçons-jeux ${LANGUES[LOCALE].directive} pour PromptLandia (app 6-12 ans : apprendre à parler aux IA, coding/STEM ludique). Ta leçon doit être un PETIT JEU D'AVENTURE captivant, pas un cours.
@@ -399,7 +409,12 @@ async function qaFinal(brouillon, titresExclus) {
   // intérêt, narration, jeux). L'IA note, le CODE tranche (seuil 80).
   const qaIa = await ia(
     `Tu es relecteur QA INDÉPENDANT et exigeant pour du contenu enfant (6-12 ans). Contre-lis cette leçon-jeu écrite en ${LANGUES[LOCALE].nom} et NOTE de 0 à 100 chaque dimension. La leçon DOIT être entièrement en ${LANGUES[LOCALE].nom} : toute étape rédigée dans une autre langue vaut langue_0_100 sous 50. Cherche activement : affirmations inventées ou douteuses (dates, chiffres, "facts" invérifiables), vocabulaire trop difficile, ton négatif/anxiogène, ${LANGUES[LOCALE].piegesLangue}, quiz dont l'explication contredit la bonne réponse, jeux incohérents (chips qui ne forment pas une vraie phrase, ordre discutable, trou ambigu — plusieurs options défendables), fil narratif qui se perd, passages ENNUYEUX pour un enfant de 8 ans. En cas de doute sérieux, note BAS et cite le passage. JSON: {"adapte_6_12_0_100":int,"factuel_0_100":int,"ton_positif_0_100":int,"langue_0_100":int,"interessant_0_100":int,"narration_0_100":int,"jeux_0_100":int,"problemes":[str]}`,
-    `LEÇON À CONTRE-LIRE (format final joueur — pour build_prompt, la solution est chips[correct_indices] dans l'ordre ; pour sort_order, items[correct_order]) : ${JSON.stringify(normalise)}`,
+    `LEÇON À CONTRE-LIRE (format final joueur) : ${JSON.stringify(normalise)}
+
+COMMENT LIRE LES JEUX (important, sinon tu vas signaler des défauts qui n'en sont pas) :
+- build_prompt : la solution est chips[correct_indices] lues DANS L'ORDRE. Les chips NON retenues sont des LEURRES VOULUS — leur présence n'est PAS un défaut. Juge leur PLAUSIBILITÉ : un bon leurre est grammaticalement compatible et moins précis que la bonne réponse ; un leurre absurde est un défaut, un leurre absent aussi.
+- sort_order : la solution est items[correct_order] dans cet ordre. Vérifie que l'explication décrit BIEN cette suite-là, et que l'ordre est indiscutable (chronologique ou causal).
+- fill_blank : la bonne réponse est options[correct_index]. Vérifie qu'une SEULE option est défendable.`,
     2500,
     0.3,
   );
@@ -569,7 +584,7 @@ TITRES DÉJÀ PRIS (ta leçon doit être DIFFÉRENTE et NON REDONDANTE): ${JSON.
     const retour = `TENTATIVE PRÉCÉDENTE REJETÉE PAR LE QA — corrige TOUT :
 erreurs de format (contrôlées par programme) : ${JSON.stringify(regles.erreurs)}
 problèmes relevés par la contre-lecture : ${JSON.stringify(qaIa.problemes ?? [])}
-scores trop bas (< ${SEUIL_SCORE_IA}) : ${JSON.stringify(Object.fromEntries(Object.entries(verdict.scores).filter(([, v]) => v < SEUIL_SCORE_IA)))}`;
+scores sous leur seuil : ${JSON.stringify(verdict.sous_seuil ?? {})}`;
     const seconde = await genererLeconRiche(`${contexte}\n${retour}`, `brouillon ${i} (re-génération)`);
     let brouillon2 = seconde.brouillon;
     if (leconOrigine) brouillon2 = { ...brouillon2, title: leconOrigine.title };

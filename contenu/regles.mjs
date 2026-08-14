@@ -11,7 +11,7 @@ const VOCAB_INTERDIT_EN = [
   // « password » n'est PAS interdit en soi : apprendre à protéger son
   // mot de passe est au programme (parcours sécurité numérique). Ce qui
   // est interdit, c'est de le DEMANDER à l'enfant.
-  ["données personnelles", /\b((what|what's|whats) is? ?your|tell (me|us) your|give (me|us) your|(type|enter|write|share|send) (me |us )?your)\b/i],
+  ["données personnelles", /\b(?:(?:what(?:'s| is)?|tell (?:me|us)|give (?:me|us)|type|enter|write|share|send)\s+(?:me\s+|us\s+)?your\s+(?:full |real |last |home )?(?:name|password|address|phone|number|e-?mail|birthday|school))\b/i],
   ["lien externe", /\b(https?:\/\/|www\.|\.com\b|\.org\b|\.net\b|youtube|tiktok|instagram|facebook)\b/i],
 ];
 
@@ -22,7 +22,7 @@ const VOCAB_INTERDIT_EN = [
 const VOCAB_INTERDIT_FR = [
   ["violence", /\b(tuer?|tue(nt|s)?|tué(e|s|es)?|arme(s)?|fusil(s)?|couteau(x)?|sang|meurtre(s)?|tirer? dessus|poignarde|bombe(s)?|mort(s|e|es)?|mourir|meur(t|s)|guerre(s)?|frappe(r|nt)?|blesse(r|nt)?|se battre|bagarre(s)?)\b/i],
   // Même principe en français : on interdit la DEMANDE, pas le sujet.
-  ["données personnelles", /\b(comment tu t'appelles|quel est ton (vrai )?(pr[ée]nom|nom)|dis(-| )(moi|nous) ton|donne(-| )(moi|nous) ton|[ée]cris ton (nom|pr[ée]nom|adresse|mot de passe)|envoie(-| )(moi|nous) ton|partage ton mot de passe|ton nom de famille|nom de famille|num[ée]ro de t[ée]l[ée]phone|carte bancaire)\b/i],
+  ["données personnelles", /\b(?:comment tu t'appelles|(?:quel est|dis(?:-| )(?:moi|nous)|donne(?:-| )(?:moi|nous)|[ée]cris|envoie(?:-| )(?:moi|nous)|partage)\s+(?:ton|ta)\s+(?:vrai(?:e)? )?(?:nom|pr[ée]nom|adresse|mot de passe|num[ée]ro|t[ée]l[ée]phone|e-?mail|[ée]cole|date de naissance)|nom de famille|carte bancaire)\b/i],
   ["lien externe", /\b(https?:\/\/|www\.|\.com\b|\.org\b|\.net\b|youtube|tiktok|instagram|facebook)\b/i],
 ];
 
@@ -101,6 +101,30 @@ const uniques = (arr) => new Set(arr.map((o) => String(o).trim().toLowerCase()))
 
 
 export const SEUIL_SCORE_IA = 80;
+
+// Seuils DIFFÉRENCIÉS (arbitrage 2026-08-14). Un seuil unique à 80 sur
+// sept dimensions était une erreur de conception : il faut réussir sept
+// conditions d'un coup, et surtout ces dimensions ne protègent pas la
+// même chose.
+//
+// - Ce qui protège l'ENFANT ne se négocie pas : âge, factualité, ton, et
+//   la pureté de la langue (une leçon à moitié traduite est un rejet net).
+// - Ce qui relève du MÉTIER — intérêt, narration, qualité des jeux — est
+//   noté par un critique volontairement impitoyable qui trouve toujours
+//   à redire (« ce leurre est grammaticalement maladroit »). À 70, la
+//   leçon est bonne ; exiger 80 partout ne produisait pas de meilleures
+//   leçons, il n'en produisait presque aucune (2 acceptées sur 26).
+//
+// Les scores restent visibles au cockpit : l'humain garde le dernier mot.
+export const SEUILS_IA = {
+  adapte_6_12: 80,
+  factuel: 80,
+  ton_positif: 80,
+  langue: 90,
+  interessant: 70,
+  narration: 70,
+  jeux: 70,
+};
 
 // --- Réparation déterministe AVANT QA -----------------------------------
 // Constat (runs lp-5 des 2026-08-13/14) : DeepSeek viole systématiquement
