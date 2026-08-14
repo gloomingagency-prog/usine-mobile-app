@@ -304,7 +304,10 @@ export function qaRegleCode(brouillon, titresExistants, locale = "en") {
 
   // Vocabulaire interdit — sur TOUT le texte du brouillon, dans la langue
   // du contenu (une regex anglaise ne filtre rien sur du français).
-  const texte = JSON.stringify(brouillon);
+  // « punch card » (carte perforée) est un terme d'histoire de
+  // l'informatique, pas de la violence : neutralisé avant le contrôle.
+  // Exception ÉTROITE et volontaire — « punch » seul reste interdit.
+  const texte = JSON.stringify(brouillon).replace(/\bpunch(ed)?[- ]cards?\b/gi, " ");
   const interdits = VOCAB_PAR_LANGUE[locale] ?? VOCAB_INTERDIT_EN;
   for (const [categorie, re] of interdits) {
     const m = texte.match(re);
