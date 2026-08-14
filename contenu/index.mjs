@@ -48,6 +48,26 @@ const sql = neon(DB_URL);
 const MODELE = "deepseek-chat";
 const dodo = (ms) => new Promise((r) => setTimeout(r, ms));
 
+// --- Langues produites ---------------------------------------------------
+// Une langue = des consignes de rédaction, une contre-lecture dédiée et un
+// vocabulaire interdit propre (regles.mjs). On ne TRADUIT jamais une leçon
+// existante : on en écrit une, native, qui repasse tout le QA.
+const LANGUES = {
+  en: {
+    nom: "anglais",
+    directive: "EN ANGLAIS",
+    // Ce que la contre-lecture doit traquer en plus, propre à la langue.
+    piegesLangue: "fautes d'anglais, tournures qui sonnent traduites",
+  },
+  fr: {
+    nom: "français",
+    directive:
+      "EN FRANÇAIS (français de France, on TUTOIE l'enfant, accents et cédilles corrects)",
+    piegesLangue:
+      "fautes de français, accords ratés, accents manquants, anglicismes évitables (« prompt » et « IA » restent, mais pas « checker » ni « spot on »), tournures calquées de l'anglais, vouvoiement de l'enfant",
+  },
+};
+
 // --- CLI ---------------------------------------------------------------
 const args = process.argv.slice(2);
 const lireArg = (nom) => {
@@ -56,6 +76,10 @@ const lireArg = (nom) => {
 };
 const ENRICH_ID = lireArg("--enrich");
 const PATH_ARG = lireArg("--path");
+// Langue du contenu à PRODUIRE (multilingue 2026-08-14). Le contenu n'est
+// jamais traduit après coup : il est écrit dans sa langue, avec ses propres
+// règles QA (vocabulaire interdit localisé) et sa contre-lecture.
+const LOCALE = (lireArg("--locale") ?? "en").toLowerCase();
 // Défaut --count 1 : la QUALITÉ prime sur la quantité.
 const COUNT = ENRICH_ID
   ? 1
@@ -63,7 +87,11 @@ const COUNT = ENRICH_ID
 // En import (re-qa.mjs), pas de CLI : on ne sort que si exécuté directement.
 const EXECUTE_DIRECTEMENT = process.argv[1]?.endsWith("index.mjs") ?? false;
 if (EXECUTE_DIRECTEMENT && !ENRICH_ID && !PATH_ARG) {
-  console.error("Usage : node index.mjs --path lp-5 [--count 1] | node index.mjs --enrich <lesson_id>");
+  console.error("Usage : node index.mjs --path lp-5 [--count 1] [--locale fr] | node index.mjs --enrich <lesson_id>");
+  process.exit(1);
+}
+if (EXECUTE_DIRECTEMENT && !LANGUES[LOCALE]) {
+  console.error(`Langue « ${LOCALE} » non prise en charge (disponibles : ${Object.keys(LANGUES).join(", ")})`);
   process.exit(1);
 }
 
@@ -215,7 +243,9 @@ function verdictQa(regles, qaIa) {
     adapte_6_12: Number(qaIa.adapte_6_12_0_100) || 0,
     factuel: Number(qaIa.factuel_0_100) || 0,
     ton_positif: Number(qaIa.ton_positif_0_100) || 0,
-    anglais: Number(qaIa.anglais_0_100) || 0,
+    // Renommé anglais_0_100 → langue_0_100 (multilingue) ; l'ancienne clé
+    // reste lue pour les rapports déjà stockés.
+    langue: Number(qaIa.langue_0_100 ?? qaIa.anglais_0_100) || 0,
     interessant: Number(qaIa.interessant_0_100) || 0,
     narration: Number(qaIa.narration_0_100) || 0,
     jeux: Number(qaIa.jeux_0_100) || 0,
@@ -267,7 +297,7 @@ const CONTRAT = `CONTRAT NON NÉGOCIABLE (vérifié par un PROGRAMME — toute v
 - "try_it" est TOUJOURS la dernière étape et a TOUJOURS un "example".
 CHECKLIST AVANT DE RÉPONDRE (fais-la vraiment) : 1) compte tes étapes → entre 8 et 12 ; 2) compte les phrases de CHAQUE "text" → max 3 ; 3) un seul jeu fill_blank OU sort_order ; 4) le "___" apparaît une seule fois dans la phrase du fill_blank ; 5) aucun "your name", aucune donnée personnelle.`;
 
-const systemeRedaction = `Tu es un auteur JEUNESSE talentueux qui écrit des leçons-jeux EN ANGLAIS pour PromptLandia (app 6-12 ans : apprendre à parler aux IA, coding/STEM ludique). Ta leçon doit être un PETIT JEU D'AVENTURE captivant, pas un cours.
+const systemeRedaction = `Tu es un auteur JEUNESSE talentueux qui écrit des leçons-jeux ${LANGUES[LOCALE].directive} pour PromptLandia (app 6-12 ans : apprendre à parler aux IA, coding/STEM ludique). Ta leçon doit être un PETIT JEU D'AVENTURE captivant, pas un cours.
 ${FORMAT_STEPS}
 ${STRUCTURE}
 ${EXIGENCES}
@@ -338,7 +368,7 @@ async function qaFinal(brouillon, titresExclus) {
   const { steps: stepsRepares, reparations } = reparerStructure(steps ?? []);
   if (reparations.length) console.log(`      réparation code : ${reparations.join(" ; ")}`);
   const normalise = { title: brouillon.title, steps: stepsRepares };
-  const regles = qaRegleCode(normalise, titresExclus);
+  const regles = qaRegleCode(normalise, titresExclus, LOCALE);
   regles.reparations = reparations;
   regles.erreurs.unshift(...erreursNorm);
   if (erreursNorm.length) regles.ok = false;
@@ -346,7 +376,7 @@ async function qaFinal(brouillon, titresExclus) {
   // Contre-lecture IA INDÉPENDANTE (anti-invention, âge, ton, langue,
   // intérêt, narration, jeux). L'IA note, le CODE tranche (seuil 80).
   const qaIa = await ia(
-    `Tu es relecteur QA INDÉPENDANT et exigeant pour du contenu enfant (6-12 ans). Contre-lis cette leçon-jeu en anglais et NOTE de 0 à 100 chaque dimension. Cherche activement : affirmations inventées ou douteuses (dates, chiffres, "facts" invérifiables), vocabulaire trop difficile, ton négatif/anxiogène, fautes d'anglais, quiz dont l'explication contredit la bonne réponse, jeux incohérents (chips qui ne forment pas une vraie phrase, ordre discutable, trou ambigu — plusieurs options défendables), fil narratif qui se perd, passages ENNUYEUX pour un enfant de 8 ans. En cas de doute sérieux, note BAS et cite le passage. JSON: {"adapte_6_12_0_100":int,"factuel_0_100":int,"ton_positif_0_100":int,"anglais_0_100":int,"interessant_0_100":int,"narration_0_100":int,"jeux_0_100":int,"problemes":[str]}`,
+    `Tu es relecteur QA INDÉPENDANT et exigeant pour du contenu enfant (6-12 ans). Contre-lis cette leçon-jeu écrite en ${LANGUES[LOCALE].nom} et NOTE de 0 à 100 chaque dimension. La leçon DOIT être entièrement en ${LANGUES[LOCALE].nom} : toute étape rédigée dans une autre langue vaut langue_0_100 sous 50. Cherche activement : affirmations inventées ou douteuses (dates, chiffres, "facts" invérifiables), vocabulaire trop difficile, ton négatif/anxiogène, ${LANGUES[LOCALE].piegesLangue}, quiz dont l'explication contredit la bonne réponse, jeux incohérents (chips qui ne forment pas une vraie phrase, ordre discutable, trou ambigu — plusieurs options défendables), fil narratif qui se perd, passages ENNUYEUX pour un enfant de 8 ans. En cas de doute sérieux, note BAS et cite le passage. JSON: {"adapte_6_12_0_100":int,"factuel_0_100":int,"ton_positif_0_100":int,"langue_0_100":int,"interessant_0_100":int,"narration_0_100":int,"jeux_0_100":int,"problemes":[str]}`,
     `LEÇON À CONTRE-LIRE (format final joueur — pour build_prompt, la solution est chips[correct_indices] dans l'ordre ; pour sort_order, items[correct_order]) : ${JSON.stringify(normalise)}`,
     2500,
     0.3,
@@ -489,11 +519,11 @@ scores trop bas (< ${SEUIL_SCORE_IA}) : ${JSON.stringify(Object.fromEntries(Obje
   // provisoire (recalculé à la publication cockpit).
   const ordre = leconOrigine ? leconOrigine.order_index : ordreMax + enAttente + i;
   const inserted = await sql`
-    insert into lesson_drafts (path_id, title, order_index, steps, status, qa_report, source, enriches_lesson_id)
+    insert into lesson_drafts (path_id, title, order_index, steps, status, qa_report, source, enriches_lesson_id, locale)
     values (${PATH_ID}, ${String(normalise.title ?? "(sans titre)").slice(0, 200)}, ${ordre},
             ${JSON.stringify(normalise.steps ?? [])}, ${verdict.status},
             ${JSON.stringify(qaReport)}, ${leconOrigine ? "ia_enrich" : "ia"},
-            ${leconOrigine ? leconOrigine.id : null})
+            ${leconOrigine ? leconOrigine.id : null}, ${LOCALE})
     returning id`;
 
   titresDuRun.push(String(normalise.title ?? ""));

@@ -128,6 +128,9 @@ function DraftCard({ draft, pathTitle }: { draft: LessonDraft; pathTitle: string
         <span className="id">
           {draft.path_id} · {pathTitle}
         </span>
+        <span className="badge" title="Langue du contenu">
+          {draft.locale === "fr" ? "🇫🇷 français" : "🇬🇧 anglais"}
+        </span>
         <span className={`badge ${BADGE_CLASS[draft.status]}`}>{STATUT_LABEL[draft.status]}</span>
         <QaBadge report={report} />
         <span className="id">source : {draft.source}</span>
@@ -208,7 +211,7 @@ export default async function ContenuPage({
   const drafts = sql
     ? ((await sql`
         select id, path_id, title, order_index, steps, status, qa_report,
-               source, published_lesson_id, enriches_lesson_id, created_at
+               source, published_lesson_id, enriches_lesson_id, locale, created_at
         from lesson_drafts
         order by created_at desc`) as unknown as LessonDraft[])
     : null;

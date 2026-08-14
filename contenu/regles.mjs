@@ -6,11 +6,23 @@
 const MAX_TEXT_CHARS = 400;
 // Vocabulaire interdit (catégorie Enfants) : violence, données
 // personnelles, liens externes. Regex à bornes de mots (skill ≠ kill).
-const VOCAB_INTERDIT = [
+const VOCAB_INTERDIT_EN = [
   ["violence", /\b(kill(s|ed|ing)?|gun(s)?|knife|knives|blood|bloody|murder|weapon(s)?|shoot(s|ing)?|stab|bomb(s)?|death|dead|die(s|d)?|dying|war|fight(s|ing)?|punch(es|ed)?|hurt(s|ing)?)\b/i],
   ["données personnelles", /\b(your (full |real |last )?name|last name|phone number|home address|your address|e-?mail address|password(s)?|share your|send (me|us) your|credit card)\b/i],
   ["lien externe", /\b(https?:\/\/|www\.|\.com\b|\.org\b|\.net\b|youtube|tiktok|instagram|facebook)\b/i],
 ];
+
+// Équivalents FRANÇAIS (multilingue 2026-08-14). Le contenu français est
+// GÉNÉRÉ en français : le contrôler avec des regex anglaises ne filtrerait
+// rien. Bornes de mots + accents ; « arme » attrape « armes » mais pas
+// « armée » grâce à la borne finale.
+const VOCAB_INTERDIT_FR = [
+  ["violence", /\b(tuer?|tue(nt|s)?|tué(e|s|es)?|arme(s)?|fusil(s)?|couteau(x)?|sang|meurtre(s)?|tirer? dessus|poignarde|bombe(s)?|mort(s|e|es)?|mourir|meur(t|s)|guerre(s)?|frappe(r|nt)?|blesse(r|nt)?|se battre|bagarre(s)?)\b/i],
+  ["données personnelles", /\b(ton (vrai )?(pr[ée]nom|nom)|ton nom de famille|nom de famille|num[ée]ro de t[ée]l[ée]phone|ton adresse|adresse (postale|e-?mail)|mot de passe|donne(-| )(moi|nous) ton|carte bancaire)\b/i],
+  ["lien externe", /\b(https?:\/\/|www\.|\.com\b|\.org\b|\.net\b|youtube|tiktok|instagram|facebook)\b/i],
+];
+
+const VOCAB_PAR_LANGUE = { en: VOCAB_INTERDIT_EN, fr: VOCAB_INTERDIT_FR };
 
 // Compteur de phrases — les abréviations d'usage (Mr./Ms./Dr.…), les
 // « e.g./i.e. », les points de suspension et les décimales ne terminent
@@ -115,7 +127,7 @@ export function reparerStructure(steps) {
   return { steps: resultat, reparations };
 }
 
-export function qaRegleCode(brouillon, titresExistants) {
+export function qaRegleCode(brouillon, titresExistants, locale = "en") {
   const erreurs = [];
   const compte = { text: 0, quiz: 0, tap_reveal: 0, try_it: 0, build_prompt: 0, sort_order: 0, fill_blank: 0, autre: 0 };
   const titre = typeof brouillon.title === "string" ? brouillon.title.trim() : "";
@@ -231,9 +243,11 @@ export function qaRegleCode(brouillon, titresExistants) {
   if (compte.tap_reveal !== 1) erreurs.push(`${compte.tap_reveal} tap_reveal (attendu 1)`);
   if (compte.try_it !== 1) erreurs.push(`${compte.try_it} try_it (attendu 1)`);
 
-  // Vocabulaire interdit — sur TOUT le texte du brouillon.
+  // Vocabulaire interdit — sur TOUT le texte du brouillon, dans la langue
+  // du contenu (une regex anglaise ne filtre rien sur du français).
   const texte = JSON.stringify(brouillon);
-  for (const [categorie, re] of VOCAB_INTERDIT) {
+  const interdits = VOCAB_PAR_LANGUE[locale] ?? VOCAB_INTERDIT_EN;
+  for (const [categorie, re] of interdits) {
     const m = texte.match(re);
     if (m) erreurs.push(`vocabulaire interdit (${categorie}) : « ${m[0]} »`);
   }

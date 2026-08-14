@@ -92,5 +92,8 @@ export type LessonDraft = {
   // la version riche ; à la publication, ses steps sont REMPLACÉS
   // (update) au lieu d'insérer une nouvelle leçon.
   enriches_lesson_id: string | null;
+  // Langue du contenu ('en', 'fr'…) : le validateur humain doit savoir
+  // dans quelle langue il relit — le QA ne le dit pas à sa place.
+  locale: string;
   created_at: string | null;
 };
