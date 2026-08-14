@@ -66,12 +66,13 @@ export async function publierApprouves() {
     const reclame = (await sql`
       update lesson_drafts set status = 'published'
       where id = ${d.id} and status = 'approved'
-      returning id, path_id, title, steps, enriches_lesson_id`) as {
+      returning id, path_id, title, steps, enriches_lesson_id, locale`) as {
       id: string;
       path_id: string;
       title: string;
       steps: LessonStep[];
       enriches_lesson_id: string | null;
+      locale: string;
     }[];
     if (reclame.length === 0) continue; // déjà publié par un run concurrent
 
@@ -100,9 +101,9 @@ export async function publierApprouves() {
         select coalesce(max(order_index), 0) + 1 as prochain
         from lessons where path_id = ${draft.path_id}`) as { prochain: number }[];
       const [lecon] = (await sql`
-        insert into lessons (path_id, title, content, steps, order_index)
+        insert into lessons (path_id, title, content, steps, order_index, locale)
         values (${draft.path_id}, ${draft.title}, ${contenuDepuisSteps(draft.steps)},
-                ${JSON.stringify(draft.steps)}, ${prochain})
+                ${JSON.stringify(draft.steps)}, ${prochain}, ${draft.locale})
         returning id`) as { id: string }[];
       // 3 · Traçabilité draft → leçon publiée.
       await sql`update lesson_drafts set published_lesson_id = ${lecon.id} where id = ${draft.id}`;
