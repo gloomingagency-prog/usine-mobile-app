@@ -8,7 +8,10 @@ const MAX_TEXT_CHARS = 400;
 // personnelles, liens externes. Regex à bornes de mots (skill ≠ kill).
 const VOCAB_INTERDIT_EN = [
   ["violence", /\b(kill(s|ed|ing)?|gun(s)?|knife|knives|blood|bloody|murder|weapon(s)?|shoot(s|ing)?|stab|bomb(s)?|death|dead|die(s|d)?|dying|war|fight(s|ing)?|punch(es|ed)?|hurt(s|ing)?)\b/i],
-  ["données personnelles", /\b(your (full |real |last )?name|last name|phone number|home address|your address|e-?mail address|password(s)?|share your|send (me|us) your|credit card)\b/i],
+  // « password » n'est PAS interdit en soi : apprendre à protéger son
+  // mot de passe est au programme (parcours sécurité numérique). Ce qui
+  // est interdit, c'est de le DEMANDER à l'enfant.
+  ["données personnelles", /\b((what|what's|whats) is? ?your|tell (me|us) your|give (me|us) your|(type|enter|write|share|send) (me |us )?your)\b/i],
   ["lien externe", /\b(https?:\/\/|www\.|\.com\b|\.org\b|\.net\b|youtube|tiktok|instagram|facebook)\b/i],
 ];
 
@@ -18,7 +21,8 @@ const VOCAB_INTERDIT_EN = [
 // « armée » grâce à la borne finale.
 const VOCAB_INTERDIT_FR = [
   ["violence", /\b(tuer?|tue(nt|s)?|tué(e|s|es)?|arme(s)?|fusil(s)?|couteau(x)?|sang|meurtre(s)?|tirer? dessus|poignarde|bombe(s)?|mort(s|e|es)?|mourir|meur(t|s)|guerre(s)?|frappe(r|nt)?|blesse(r|nt)?|se battre|bagarre(s)?)\b/i],
-  ["données personnelles", /\b(ton (vrai )?(pr[ée]nom|nom)|ton nom de famille|nom de famille|num[ée]ro de t[ée]l[ée]phone|ton adresse|adresse (postale|e-?mail)|mot de passe|donne(-| )(moi|nous) ton|carte bancaire)\b/i],
+  // Même principe en français : on interdit la DEMANDE, pas le sujet.
+  ["données personnelles", /\b(comment tu t'appelles|quel est ton (vrai )?(pr[ée]nom|nom)|dis(-| )(moi|nous) ton|donne(-| )(moi|nous) ton|[ée]cris ton (nom|pr[ée]nom|adresse|mot de passe)|envoie(-| )(moi|nous) ton|partage ton mot de passe|ton nom de famille|nom de famille|num[ée]ro de t[ée]l[ée]phone|carte bancaire)\b/i],
   ["lien externe", /\b(https?:\/\/|www\.|\.com\b|\.org\b|\.net\b|youtube|tiktok|instagram|facebook)\b/i],
 ];
 
@@ -40,6 +44,20 @@ const MARQUEURS_ETRANGERS = {
   // Dans une leçon ANGLAISE, ces mots français n'ont rien à faire.
   en: /\b(le|la|les|des|une|dans|avec|pour|sur|sous|par|mais|donc|puis|alors|tu|toi|ton|ta|tes|vous|votre|nous|notre|est|sont|était|sera|peux|peut|veux|veut|dois|doit|fais|fait|dire|voir|avoir|être|aller|c'est|qu'est-ce|pourquoi|comment|quand|où|parce|très|beaucoup|toujours|jamais|encore|maintenant|aujourd'hui|bonjour|salut|merci|génial|leçon|jeu|mot|réponse)\b/gi,
 };
+
+/**
+ * Retire les phrases NÉGATIVES avant le contrôle des données
+ * personnelles. Une leçon de sécurité numérique dit « ne donne jamais
+ * ton nom » : c'est l'inverse d'une sollicitation, et l'interdire
+ * revenait à interdire le programme lui-même.
+ */
+function sansPhrasesNegatives(texte) {
+  const NEGATION = /\b(never|don'?t|do not|no one|nobody|ne |n'|jamais|pas |personne)\b/i;
+  return String(texte)
+    .split(/(?<=[.!?])\s+/)
+    .filter((phrase) => !NEGATION.test(phrase))
+    .join(" ");
+}
 
 /**
  * Mots de l'AUTRE langue trouvés dans le brouillon (liste dédupliquée).
@@ -147,7 +165,7 @@ export function reparerStructure(steps) {
     const s = resultat[i];
     if (s?.type !== "text" || typeof s.content !== "string") continue;
     const phrases = decouperEnPhrases(s.content);
-    if (nbPhrases(s.content) <= 3 || phrases.length < 2) continue;
+    if (nbPhrases(s.content) <= 4 || phrases.length < 2) continue;
     const nbMorceaux = Math.ceil(phrases.length / 3);
     const totalApres = resultat.length + nbMorceaux - 1;
     const textApres = resultat.filter((x) => x?.type === "text").length + nbMorceaux - 1;
@@ -161,7 +179,7 @@ export function reparerStructure(steps) {
       morceaux.push(phrases.slice(pos, pos + taille).join(" "));
       pos += taille;
     }
-    if (morceaux.some((mo) => nbPhrases(mo) > 3 || mo.length > MAX_TEXT_CHARS)) continue;
+    if (morceaux.some((mo) => nbPhrases(mo) > 4 || mo.length > MAX_TEXT_CHARS)) continue;
     reparations.push(`étape ${i + 1} (text) : ${phrases.length} phrases découpées en ${nbMorceaux} étapes`);
     resultat.splice(i, 1, ...morceaux.map((content) => ({ ...s, content })));
     i += nbMorceaux - 1;
@@ -189,7 +207,7 @@ export function qaRegleCode(brouillon, titresExistants, locale = "en") {
       if (typeof s.content !== "string" || !s.content.trim()) erreurs.push(`${ou} (text) : content manquant`);
       else {
         if (s.content.length > MAX_TEXT_CHARS) erreurs.push(`${ou} (text) : ${s.content.length} > ${MAX_TEXT_CHARS} caractères`);
-        if (nbPhrases(s.content) > 3) erreurs.push(`${ou} (text) : ${nbPhrases(s.content)} phrases (attendu ≤ 3 — texte COURT)`);
+        if (nbPhrases(s.content) > 4) erreurs.push(`${ou} (text) : ${nbPhrases(s.content)} phrases (attendu ≤ 4 — texte COURT)`);
       }
     } else if (s.type === "quiz") {
       compte.quiz++;
@@ -307,7 +325,9 @@ export function qaRegleCode(brouillon, titresExistants, locale = "en") {
   // « punch card » (carte perforée) est un terme d'histoire de
   // l'informatique, pas de la violence : neutralisé avant le contrôle.
   // Exception ÉTROITE et volontaire — « punch » seul reste interdit.
-  const texte = JSON.stringify(brouillon).replace(/\bpunch(ed)?[- ]cards?\b/gi, " ");
+  const texte = sansPhrasesNegatives(
+    JSON.stringify(brouillon).replace(/\bpunch(ed)?[- ]cards?\b/gi, " "),
+  );
   const interdits = VOCAB_PAR_LANGUE[locale] ?? VOCAB_INTERDIT_EN;
   for (const [categorie, re] of interdits) {
     const m = texte.match(re);

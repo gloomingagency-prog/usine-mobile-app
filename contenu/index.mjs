@@ -288,6 +288,19 @@ const STRUCTURE = `STRUCTURE OBLIGATOIRE (9 à 11 étapes, la variété fait le 
 - EXACTEMENT 1 "tap_reveal" ;
 - EXACTEMENT 1 "try_it" (avec "example"), en DERNIÈRE étape.`;
 
+
+// Exemple RÉEL tiré de la seule leçon qui ait passé le banc émulateur
+// avec jeux=85 (« Milo le robot cuisinier »). Constat du lot
+// d'enrichissement 2026-08-14 : la dimension « jeux » bloquait 38 rejets
+// sur 40 — le format était décrit mais jamais MONTRÉ. Un exemple vaut
+// mieux qu'une consigne de plus.
+const EXEMPLE_JEUX = `EXEMPLE DE JEUX RÉUSSIS (inspire-toi de ce NIVEAU, pas du sujet) :
+{"type":"build_prompt","instruction":"Aide Milo à réussir le gâteau parfait !","correct_chips":["Agis comme un grand pâtissier","et donne","une recette étape par étape","pour un gâteau géant au chocolat"],"distractor_chips":["avec des paillettes","dans l'espace"],"mode":"ordered","explanation":"Parfait ! Tu as dit exactement QUI, QUOI et COMMENT — c'est ça, un prompt précis."}
+Ce qui en fait un BON jeu : les blocs assemblés forment une VRAIE phrase de prompt, utile et naturelle ; les leurres sont plausibles mais visiblement hors sujet ; l'explication nomme ce que l'enfant vient de comprendre.
+{"type":"fill_blank","sentence":"Une demande vague donne n'importe quoi, mais une demande ___ donne exactement ce que tu veux.","correct":"précise","distractors":["drôle","forte"],"explanation":"Exact ! Une demande précise guide mieux l'IA."}
+Ce qui en fait un BON trou : le mot manquant est LE mot que la leçon vient d'enseigner, et un seul des choix est défendable.
+CE QUI FAIT UN MAUVAIS JEU (à éviter absolument) : des blocs qui ne forment pas une phrase naturelle ; un ordre discutable où plusieurs solutions se valent ; un trou dont deux réponses sont acceptables ; un jeu qui teste un détail au lieu de l'idée centrale.`;
+
 const EXIGENCES = `EXIGENCES QUALITÉ (la qualité prime sur la quantité) :
 - NARRATION CONTINUE : un fil conducteur (un personnage, une mission, un scénario rigolo) traverse TOUTE la leçon — chaque étape reprend le fil, les jeux sont des moments DE l'histoire, pas des exercices posés à côté ;
 - humour léger, ton complice, JAMAIS de liste sèche ni de paragraphe encyclopédique ;
@@ -308,6 +321,7 @@ CHECKLIST AVANT DE RÉPONDRE (fais-la vraiment) : 1) compte tes étapes → entr
 const systemeRedaction = `Tu es un auteur JEUNESSE talentueux qui écrit des leçons-jeux ${LANGUES[LOCALE].directive} pour PromptLandia (app 6-12 ans : apprendre à parler aux IA, coding/STEM ludique). Ta leçon doit être un PETIT JEU D'AVENTURE captivant, pas un cours.
 ${FORMAT_STEPS}
 ${STRUCTURE}
+${EXEMPLE_JEUX}
 ${EXIGENCES}
 ${CONTRAT}
 JSON: {"title":str,"steps":[...]}`;
