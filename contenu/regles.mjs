@@ -30,13 +30,15 @@ const VOCAB_PAR_LANGUE = { en: VOCAB_INTERDIT_EN, fr: VOCAB_INTERDIT_FR };
 // garantie : ce contrôle est déterministe. On ne cherche que des mots
 // SANS AMBIGUÏTÉ (ni « a », ni « note », ni « type », qui existent dans
 // les deux langues), à bornes de mots, hors termes du domaine tolérés.
-const TERMES_TOLERES = /\b(prompt|prompts|IA|AI|chat|robot|robots|quiz|XP|internet|web|email|smartphone|pixel|pixels|kit|test|tests|stop|ok)\b/gi;
+// Termes identiques ou empruntés dans les deux langues : neutralisés
+// avant le contrôle, sinon ils déclencheraient des rejets à tort.
+const TERMES_TOLERES = /\b(prompt|prompts|IA|AI|chat|robot|robots|quiz|XP|internet|web|email|smartphone|pixel|pixels|kit|test|tests|stop|ok|super|bravo|cool|phrase|phrases|note|notes|image|images|film|films|photo|photos|menu|studio|version|style|styles|type|types|format|formats|attention|question|questions|solution|solutions|invention|imagination|animation|construction|application)\b/gi;
 
 const MARQUEURS_ETRANGERS = {
   // Dans une leçon FRANÇAISE, ces mots anglais n'ont rien à faire.
-  fr: /\b(the|and|you|your|yours|with|this|that|these|those|what|when|where|which|who|how|why|is|are|was|were|will|would|can|could|should|have|has|had|does|did|from|about|into|over|under|between|because|before|after|always|never|very|more|most|less|other|another|each|every|something|anything|nothing|everyone|let's|let|make|makes|made|give|gives|take|takes|think|thinks|know|knows|want|wants|need|needs|help|helps|write|writes|read|reads|learn|learns|play|plays|great|good|best|better|awesome|amazing|nice|cool|funny|happy|ready|next|first|last|new|old|little|big|small)\b/gi,
+  fr: /\b(the|and|you|your|yours|with|this|that|these|those|what|when|where|which|who|how|why|is|are|was|were|will|would|can|could|should|have|has|had|does|did|from|about|into|over|under|between|because|before|after|always|never|very|more|most|less|other|another|each|every|something|anything|nothing|everyone|let's|let|make|makes|made|give|gives|take|takes|think|thinks|know|knows|want|wants|need|needs|help|helps|write|writes|read|reads|learn|learns|play|plays|great|good|best|better|awesome|amazing|nice|funny|happy|ready|next|first|last|new|old|little|big|small)\b/gi,
   // Dans une leçon ANGLAISE, ces mots français n'ont rien à faire.
-  en: /\b(le|la|les|des|une|dans|avec|pour|sur|sous|par|mais|donc|puis|alors|tu|toi|ton|ta|tes|vous|votre|nous|notre|est|sont|était|sera|peux|peut|veux|veut|dois|doit|fais|fait|dire|voir|avoir|être|aller|c'est|qu'est-ce|pourquoi|comment|quand|où|parce|très|beaucoup|toujours|jamais|encore|maintenant|aujourd'hui|bonjour|salut|merci|bravo|génial|super|leçon|jeu|mot|phrase|réponse)\b/gi,
+  en: /\b(le|la|les|des|une|dans|avec|pour|sur|sous|par|mais|donc|puis|alors|tu|toi|ton|ta|tes|vous|votre|nous|notre|est|sont|était|sera|peux|peut|veux|veut|dois|doit|fais|fait|dire|voir|avoir|être|aller|c'est|qu'est-ce|pourquoi|comment|quand|où|parce|très|beaucoup|toujours|jamais|encore|maintenant|aujourd'hui|bonjour|salut|merci|génial|leçon|jeu|mot|réponse)\b/gi,
 };
 
 /**
