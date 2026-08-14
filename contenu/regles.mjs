@@ -24,6 +24,47 @@ const VOCAB_INTERDIT_FR = [
 
 const VOCAB_PAR_LANGUE = { en: VOCAB_INTERDIT_EN, fr: VOCAB_INTERDIT_FR };
 
+// --- Cohérence de langue (exigence produit 2026-08-14) -------------------
+// « Si on a une version française, elle est ENTIÈREMENT française. »
+// La contre-lecture IA note déjà la langue, mais un avis n'est pas une
+// garantie : ce contrôle est déterministe. On ne cherche que des mots
+// SANS AMBIGUÏTÉ (ni « a », ni « note », ni « type », qui existent dans
+// les deux langues), à bornes de mots, hors termes du domaine tolérés.
+const TERMES_TOLERES = /\b(prompt|prompts|IA|AI|chat|robot|robots|quiz|XP|internet|web|email|smartphone|pixel|pixels|kit|test|tests|stop|ok)\b/gi;
+
+const MARQUEURS_ETRANGERS = {
+  // Dans une leçon FRANÇAISE, ces mots anglais n'ont rien à faire.
+  fr: /\b(the|and|you|your|yours|with|this|that|these|those|what|when|where|which|who|how|why|is|are|was|were|will|would|can|could|should|have|has|had|does|did|from|about|into|over|under|between|because|before|after|always|never|very|more|most|less|other|another|each|every|something|anything|nothing|everyone|let's|let|make|makes|made|give|gives|take|takes|think|thinks|know|knows|want|wants|need|needs|help|helps|write|writes|read|reads|learn|learns|play|plays|great|good|best|better|awesome|amazing|nice|cool|funny|happy|ready|next|first|last|new|old|little|big|small)\b/gi,
+  // Dans une leçon ANGLAISE, ces mots français n'ont rien à faire.
+  en: /\b(le|la|les|des|une|dans|avec|pour|sur|sous|par|mais|donc|puis|alors|tu|toi|ton|ta|tes|vous|votre|nous|notre|est|sont|était|sera|peux|peut|veux|veut|dois|doit|fais|fait|dire|voir|avoir|être|aller|c'est|qu'est-ce|pourquoi|comment|quand|où|parce|très|beaucoup|toujours|jamais|encore|maintenant|aujourd'hui|bonjour|salut|merci|bravo|génial|super|leçon|jeu|mot|phrase|réponse)\b/gi,
+};
+
+/**
+ * Mots de l'AUTRE langue trouvés dans le brouillon (liste dédupliquée).
+ * Vide = la leçon est homogène.
+ */
+export function motsEtrangers(brouillon, locale) {
+  const re = MARQUEURS_ETRANGERS[locale];
+  if (!re) return [];
+  // On ne contrôle QUE le texte destiné à l'enfant : les clés JSON et
+  // les types d'étapes sont anglais par nature (« build_prompt »…).
+  const textes = [];
+  const collecter = (v) => {
+    if (typeof v === "string") textes.push(v);
+    else if (Array.isArray(v)) v.forEach(collecter);
+    else if (v && typeof v === "object") {
+      for (const [cle, val] of Object.entries(v)) {
+        if (cle !== "type" && cle !== "mode") collecter(val);
+      }
+    }
+  };
+  collecter(brouillon.title);
+  collecter(brouillon.steps);
+  const corpus = textes.join(" ").replace(TERMES_TOLERES, " ");
+  const trouves = corpus.match(re) ?? [];
+  return [...new Set(trouves.map((m) => m.toLowerCase()))];
+}
+
 // Compteur de phrases — les abréviations d'usage (Mr./Ms./Dr.…), les
 // « e.g./i.e. », les points de suspension et les décimales ne terminent
 // PAS une phrase (bug réel, run 2026-08-13 : « Mr. Owl, Ms. Fox, and
@@ -108,7 +149,7 @@ export function reparerStructure(steps) {
     const nbMorceaux = Math.ceil(phrases.length / 3);
     const totalApres = resultat.length + nbMorceaux - 1;
     const textApres = resultat.filter((x) => x?.type === "text").length + nbMorceaux - 1;
-    if (totalApres > 12 || textApres > 6) continue; // plus de place — rejet honnête
+    if (totalApres > 14 || textApres > 8) continue; // plus de place — rejet honnête
     const morceaux = [];
     const base = Math.floor(phrases.length / nbMorceaux);
     const extra = phrases.length % nbMorceaux;
@@ -227,14 +268,21 @@ export function qaRegleCode(brouillon, titresExistants, locale = "en") {
   // Structure RICHE imposée (v2, qualité d'abord) : 8-12 étapes mêlant
   // 2-6 text courts (et ≥ 4 étapes jouables), 2-3 quiz, EXACTEMENT 1 build_prompt (jeu signature),
   // EXACTEMENT 1 fill_blank OU sort_order, 1 tap_reveal, 1 try_it final.
+  // Plafond relevé à 14 le 2026-08-14, dans l'INTENTION de la règle et
+  // non contre elle : ce qui fatigue un enfant, c'est la quantité de
+  // TEXTE (déjà bornée à 3 phrases et 400 caractères par étape), pas le
+  // nombre d'écrans. Découper un pavé en deux étapes courtes améliore le
+  // rythme — le refuser pour un plafond d'étapes rejetait des leçons
+  // parfaitement bonnes (constat : 3 enrichissements sur 3 rejetés pour
+  // ce seul motif). Le modèle, lui, reste prié d'en écrire 9 à 11.
   const total = steps.length;
-  if (total < 8 || total > 12) erreurs.push(`${total} étapes (attendu 8-12)`);
+  if (total < 8 || total > 14) erreurs.push(`${total} étapes (attendu 8-14)`);
   // Arbitrage 2026-08-14 : le RATIO prime sur le compte absolu — 6 text
   // acceptés si la leçon reste majoritairement jouable (≥ 4 étapes
   // interactives). Le meilleur candidat réel (scores IA tous ≥ 80)
   // échouait uniquement sur l'ancien plafond de 5.
   const jouables = (compte.quiz ?? 0) + (compte.build_prompt ?? 0) + (compte.fill_blank ?? 0) + (compte.sort_order ?? 0);
-  if (compte.text < 2 || compte.text > 6) erreurs.push(`${compte.text} étapes text (attendu 2-6)`);
+  if (compte.text < 2 || compte.text > 8) erreurs.push(`${compte.text} étapes text (attendu 2-8)`);
   if (jouables < 4) erreurs.push(`${jouables} étapes jouables (attendu ≥ 4)`);
   if (compte.quiz < 2 || compte.quiz > 3) erreurs.push(`${compte.quiz} quiz (attendu 2-3)`);
   if (compte.build_prompt !== 1) erreurs.push(`${compte.build_prompt} build_prompt (attendu 1 — le jeu signature)`);
@@ -242,6 +290,15 @@ export function qaRegleCode(brouillon, titresExistants, locale = "en") {
     erreurs.push(`${compte.sort_order} sort_order + ${compte.fill_blank} fill_blank (attendu EXACTEMENT 1 des deux)`);
   if (compte.tap_reveal !== 1) erreurs.push(`${compte.tap_reveal} tap_reveal (attendu 1)`);
   if (compte.try_it !== 1) erreurs.push(`${compte.try_it} try_it (attendu 1)`);
+
+  // Langue HOMOGÈNE : pas un mot de l'autre langue dans le texte lu par
+  // l'enfant. Une leçon à moitié traduite est pire que pas de leçon.
+  const etrangers = motsEtrangers(brouillon, locale);
+  if (etrangers.length > 0) {
+    erreurs.push(
+      `mélange de langues (${locale}) : ${etrangers.slice(0, 8).join(", ")}${etrangers.length > 8 ? "…" : ""}`,
+    );
+  }
 
   // Vocabulaire interdit — sur TOUT le texte du brouillon, dans la langue
   // du contenu (une regex anglaise ne filtre rien sur du français).

@@ -17,6 +17,34 @@ export async function approuverDraft(formData: FormData) {
   redirect("/contenu?fait=approuve");
 }
 
+/**
+ * Approuve TOUS les brouillons qa_ok d'un coup — et, en option, d'un seul
+ * parcours (`pathId`) ou d'une seule langue (`locale`).
+ *
+ * Le gate humain n'est pas dilué : l'humain décide toujours, et seuls des
+ * brouillons DÉJÀ passés par le QA automatique sont concernés. Ce qui
+ * change, c'est l'ergonomie : un lot d'enrichissement produit des dizaines
+ * de brouillons, et cliquer quarante fois n'est pas une validation plus
+ * réfléchie — c'est juste une validation plus pénible.
+ */
+export async function approuverTousQaOk(formData: FormData) {
+  const sql = getPromptlandiaDb();
+  if (!sql) redirect("/contenu");
+  const pathId = String(formData.get("pathId") ?? "");
+  const locale = String(formData.get("locale") ?? "");
+
+  const lignes = pathId
+    ? await sql`update lesson_drafts set status = 'approved'
+        where status = 'qa_ok' and path_id = ${pathId} returning id`
+    : locale
+      ? await sql`update lesson_drafts set status = 'approved'
+          where status = 'qa_ok' and locale = ${locale} returning id`
+      : await sql`update lesson_drafts set status = 'approved'
+          where status = 'qa_ok' returning id`;
+
+  redirect(`/contenu?fait=approuve_lot&n=${lignes.length}`);
+}
+
 export async function rejeterDraft(formData: FormData) {
   const id = String(formData.get("id") ?? "");
   const sql = getPromptlandiaDb();

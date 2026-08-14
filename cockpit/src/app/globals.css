@@ -312,3 +312,13 @@ input:hover, select:hover { border-color: var(--accent); }
 details.folded { margin: 1rem 0; }
 details.folded summary { cursor: pointer; color: var(--muted); font-weight: 600; padding: 0.4rem 0; }
 details.folded summary:hover { color: var(--danger); }
+
+/* Ligne d'action groupée (ex. « Tout approuver ») : le bouton et son
+   avertissement sur la même ligne, l'avertissement reste lisible. */
+.ligne-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 8px 0 16px;
+}

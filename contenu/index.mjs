@@ -75,6 +75,10 @@ const lireArg = (nom) => {
   return i >= 0 ? args[i + 1] : undefined;
 };
 const ENRICH_ID = lireArg("--enrich");
+// Mode JUMELLE : écrire la version d'une leçon existante dans une AUTRE
+// langue (parité EN/FR). Même histoire, même objectif, mêmes jeux —
+// mais rédigée nativement, jamais traduite mot à mot.
+const TWIN_ID = lireArg("--twin");
 const PATH_ARG = lireArg("--path");
 // Langue du contenu à PRODUIRE (multilingue 2026-08-14). Le contenu n'est
 // jamais traduit après coup : il est écrit dans sa langue, avec ses propres
@@ -86,8 +90,8 @@ const COUNT = ENRICH_ID
   : Math.min(Math.max(parseInt(lireArg("--count") ?? "1", 10) || 1, 1), 10);
 // En import (re-qa.mjs), pas de CLI : on ne sort que si exécuté directement.
 const EXECUTE_DIRECTEMENT = process.argv[1]?.endsWith("index.mjs") ?? false;
-if (EXECUTE_DIRECTEMENT && !ENRICH_ID && !PATH_ARG) {
-  console.error("Usage : node index.mjs --path lp-5 [--count 1] [--locale fr] | node index.mjs --enrich <lesson_id>");
+if (EXECUTE_DIRECTEMENT && !ENRICH_ID && !PATH_ARG && !TWIN_ID) {
+  console.error("Usage : node index.mjs --path lp-5 [--count 1] [--locale fr] | --enrich <lesson_id> | --twin <lesson_id> --locale fr");
   process.exit(1);
 }
 if (EXECUTE_DIRECTEMENT && !LANGUES[LOCALE]) {
@@ -390,10 +394,65 @@ async function qaFinal(brouillon, titresExclus) {
   return { normalise, regles, qaIa, verdict };
 }
 
+/** Leçon en base (format joueur) → format AUTEUR lisible par le modèle. */
+function versFormatAuteur(steps) {
+  if (!Array.isArray(steps)) return [];
+  return steps.map((s) => {
+    if (s.type === "build_prompt") {
+      const corrects = (s.correct_indices ?? []).map((i) => s.chips?.[i]);
+      const leurres = (s.chips ?? []).filter((_, i) => !(s.correct_indices ?? []).includes(i));
+      return { type: "build_prompt", instruction: s.instruction, correct_chips: corrects, distractor_chips: leurres, mode: s.mode, explanation: s.explanation };
+    }
+    if (s.type === "sort_order") {
+      const ordonnes = (s.correct_order ?? []).map((i) => s.items?.[i]);
+      return { type: "sort_order", instruction: s.instruction, items_in_order: ordonnes, explanation: s.explanation };
+    }
+    if (s.type === "fill_blank") {
+      const correct = s.options?.[s.correct_index];
+      const leurres = (s.options ?? []).filter((_, i) => i !== s.correct_index);
+      return { type: "fill_blank", sentence: s.sentence, correct, distractors: leurres, explanation: s.explanation };
+    }
+    return s;
+  });
+}
+
 // --- main ---------------------------------------------------------------
 // Contexte : mode normal (--path) ou ENRICHISSEMENT (--enrich <lesson_id>).
 let PATH_ID = PATH_ARG;
 let leconOrigine = null;
+let leconSource = null;
+if (TWIN_ID) {
+  const [src] = await sql`select * from lessons where id = ${TWIN_ID}`;
+  if (!src) {
+    console.error(`Leçon « ${TWIN_ID} » introuvable — --twin exige l'id d'une leçon PUBLIÉE`);
+    process.exit(1);
+  }
+  if (src.locale === LOCALE) {
+    console.error(`La leçon source est déjà en « ${LOCALE} » — choisis une autre langue cible`);
+    process.exit(1);
+  }
+  const [parcoursSource] = await sql`select concept_key from learning_paths where id = ${src.path_id}`;
+  const [cible] = await sql`
+    select id from learning_paths
+    where concept_key = ${parcoursSource?.concept_key} and locale = ${LOCALE}`;
+  if (!cible) {
+    console.error(`Aucun parcours « ${LOCALE} » pour le concept ${parcoursSource?.concept_key} (crée-le d'abord)`);
+    process.exit(1);
+  }
+  // Reprise : si la jumelle existe déjà (publiée ou en attente), on ne
+  // la refait pas — le lot est ainsi relançable sans doublon ni coût.
+  const [deja] = await sql`
+    select 'lecon' as ou from lessons where concept_key = ${src.concept_key} and locale = ${LOCALE}
+    union all
+    select 'brouillon' from lesson_drafts where concept_key = ${src.concept_key} and locale = ${LOCALE} and status <> 'qa_rejected'
+    limit 1`;
+  if (deja) {
+    console.log(`déjà fait (${deja.ou}) : ${src.concept_key} → ${LOCALE}`);
+    process.exit(0);
+  }
+  leconSource = src;
+  PATH_ID = cible.id;
+}
 if (ENRICH_ID) {
   const [l] = await sql`select * from lessons where id = ${ENRICH_ID}`;
   if (!l) {
@@ -446,7 +505,17 @@ for (let i = 1; i <= COUNT; i++) {
   const dejaPris = [...titresExistants, ...titresDuRun];
   console.log(`\n— Brouillon ${i}/${COUNT} —`);
 
-  const contexte = leconOrigine
+  const contexte = leconSource
+    ? `${contexteParcours}
+LEÇON EXISTANTE À ÉCRIRE DANS TA LANGUE (elle est en ${LANGUES[leconSource.locale]?.nom ?? leconSource.locale}) :
+titre : ${leconSource.title}
+étapes (format auteur) : ${JSON.stringify(versFormatAuteur(leconSource.steps))}
+
+TA MISSION : écrire LA MÊME leçon ${LANGUES[LOCALE].directive}. Même personnage, même histoire, même objectif pédagogique, MÊMES types d'étapes DANS LE MÊME ORDRE — un enfant qui joue les deux versions doit vivre la même aventure.
+Ce n'est PAS une traduction mot à mot : les jeux de mots, les exemples, les chips du build_prompt et la phrase à trou doivent fonctionner NATURELLEMENT dans ta langue. Si une tournure ne se transpose pas, trouve l'équivalent qui produit le même effet.
+STRUCTURE : garde les MÊMES jeux dans le même ordre, mais respecte le contrat 9-11 étapes et 3 phrases maximum par étape « text » — si une étape de l'original est plus longue, DÉCOUPE-la en deux étapes. L'important est l'histoire et les jeux, pas le compte exact d'étapes de l'original.
+INTERDIT ABSOLU : laisser le moindre mot de la langue d'origine dans le texte lu par l'enfant (un programme le vérifie et rejette la leçon).`
+    : leconOrigine
     ? `${contexteParcours}
 MISSION : réécris ENTIÈREMENT la leçon ci-dessous en version RICHE v2 (même sujet, même niveau, mais narration + mini-jeux). Elle remplacera l'originale — couvre au moins les mêmes notions, en mieux.
 TITRE (à GARDER tel quel) : ${leconOrigine.title}
@@ -521,13 +590,14 @@ scores trop bas (< ${SEUIL_SCORE_IA}) : ${JSON.stringify(Object.fromEntries(Obje
   // 5 · Staging UNIQUEMENT (lesson_drafts) — jamais lessons ici.
   // order_index : celui de la leçon d'origine en mode enrich, sinon
   // provisoire (recalculé à la publication cockpit).
-  const ordre = leconOrigine ? leconOrigine.order_index : ordreMax + enAttente + i;
+  const ordre = leconSource ? leconSource.order_index : leconOrigine ? leconOrigine.order_index : ordreMax + enAttente + i;
   const inserted = await sql`
-    insert into lesson_drafts (path_id, title, order_index, steps, status, qa_report, source, enriches_lesson_id, locale)
+    insert into lesson_drafts (path_id, title, order_index, steps, status, qa_report, source, enriches_lesson_id, locale, concept_key)
     values (${PATH_ID}, ${String(normalise.title ?? "(sans titre)").slice(0, 200)}, ${ordre},
             ${JSON.stringify(normalise.steps ?? [])}, ${verdict.status},
-            ${JSON.stringify(qaReport)}, ${leconOrigine ? "ia_enrich" : "ia"},
-            ${leconOrigine ? leconOrigine.id : null}, ${LOCALE})
+            ${JSON.stringify(qaReport)}, ${leconSource ? "ia_twin" : leconOrigine ? "ia_enrich" : "ia"},
+            ${leconOrigine ? leconOrigine.id : null}, ${LOCALE},
+            ${leconSource ? leconSource.concept_key : null})
     returning id`;
 
   titresDuRun.push(String(normalise.title ?? ""));

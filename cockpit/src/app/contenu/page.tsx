@@ -1,5 +1,5 @@
 import { getPromptlandiaDb, type LessonDraft, type LessonStep, type QaReport } from "@/db/promptlandia";
-import { approuverDraft, publierApprouves, rejeterDraft } from "./actions";
+import { approuverDraft, approuverTousQaOk, publierApprouves, rejeterDraft } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -238,6 +238,9 @@ export default async function ContenuPage({
 
       {fait === "approuve" && <div className="toast ok" role="status">Brouillon approuvé — publiable.</div>}
       {fait === "rejete" && <div className="toast ok" role="status">Brouillon rejeté.</div>}
+      {fait === "approuve_lot" && (
+        <div className="toast ok" role="status">{n ?? "0"} brouillon(s) approuvé(s) — publiables.</div>
+      )}
       {fait === "publie" && (
         <div className="toast ok" role="status">
           {n ?? "0"} leçon(s) publiée(s) dans PromptLandia.
@@ -269,6 +272,17 @@ export default async function ContenuPage({
       <h2 className="group-title">
         QA OK — à valider <span className="count">({aValider.length})</span>
       </h2>
+      {aValider.length > 1 && (
+        <form action={approuverTousQaOk} className="ligne-actions">
+          <button className="primary" type="submit">
+            Tout approuver ({aValider.length})
+          </button>
+          <span className="id">
+            n&apos;approuve que des brouillons DÉJÀ passés par le QA automatique
+          </span>
+        </form>
+      )}
+
       {drafts !== null && aValider.length === 0 && (
         <p className="empty">
           Rien à valider — générer : <code>node contenu/index.mjs --path lp-X --count N</code>.
