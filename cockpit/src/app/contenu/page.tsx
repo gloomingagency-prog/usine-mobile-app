@@ -118,6 +118,19 @@ function QaBadge({ report }: { report: QaReport | null }) {
   );
 }
 
+const ETAT_LABEL: Record<string, string> = {
+  publie: "jouable",
+  attente: "à enrichir",
+  rejete: "rejeté",
+  absent: "manquante",
+};
+const ETAT_CLASSE: Record<string, string> = {
+  publie: "ok",
+  attente: "a_valider",
+  rejete: "kill",
+  absent: "kill",
+};
+
 function DraftCard({ draft, pathTitle }: { draft: LessonDraft; pathTitle: string }) {
   const report = draft.qa_report;
   const ia = report?.qa_ia;
@@ -211,7 +224,7 @@ export default async function ContenuPage({
   const drafts = sql
     ? ((await sql`
         select id, path_id, title, order_index, steps, status, qa_report,
-               source, published_lesson_id, enriches_lesson_id, locale, created_at
+               source, published_lesson_id, enriches_lesson_id, locale, concept_key, created_at
         from lesson_drafts
         order by created_at desc`) as unknown as LessonDraft[])
     : null;
@@ -219,6 +232,56 @@ export default async function ContenuPage({
     ? ((await sql`select id, title from learning_paths`) as unknown as { id: string; title: string }[])
     : [];
   const titreParcours = new Map(paths.map((p) => [p.id, p.title]));
+
+  // PARITÉ DES LANGUES — une leçon existe par CONCEPT, dans chaque
+  // langue. Cette vue dit, concept par concept, ce qui est publié, ce
+  // qui attend, et ce qui manque : c'est elle qui permet de dire « cette
+  // leçon-là est à refaire » sans gérer deux catalogues séparés.
+  type LigneParite = {
+    concept: string;
+    titre: string;
+    parcours: string;
+    langues: Record<string, "publie" | "attente" | "rejete" | null>;
+  };
+  const lecons = sql
+    ? ((await sql`
+        select concept_key, locale, title, path_id,
+               jsonb_array_length(coalesce(steps, '[]'::jsonb)) as n_steps,
+               (select count(*) from jsonb_array_elements(coalesce(steps, '[]'::jsonb)) e
+                 where e->>'type' in ('build_prompt','sort_order','fill_blank')) as n_jeux
+        from lessons where concept_key is not null
+        order by concept_key`) as unknown as {
+        concept_key: string; locale: string; title: string; path_id: string;
+        n_steps: number; n_jeux: number;
+      }[])
+    : [];
+
+  const parite = new Map<string, LigneParite>();
+  for (const l of lecons) {
+    const ligne = parite.get(l.concept_key) ?? {
+      concept: l.concept_key,
+      titre: l.title,
+      parcours: l.path_id.replace(/-fr$/, ""),
+      langues: {},
+    };
+    // Le titre de référence est l'anglais (langue source du catalogue).
+    if (l.locale === "en") ligne.titre = l.title;
+    // Une leçon publiée SANS mini-jeu reste à enrichir : on ne la compte
+    // pas comme faite, sinon la parité mentirait.
+    ligne.langues[l.locale] = Number(l.n_jeux) >= 2 ? "publie" : "attente";
+    parite.set(l.concept_key, ligne);
+  }
+  for (const d of (drafts ?? []).filter((x) => x.concept_key)) {
+    const ligne = parite.get(d.concept_key!);
+    if (!ligne) continue;
+    if (ligne.langues[d.locale] === "publie") continue;
+    ligne.langues[d.locale] =
+      d.status === "qa_rejected" ? "rejete" : d.status === "published" ? "publie" : "attente";
+  }
+  const lignesParite = [...parite.values()].sort((a, b) => a.concept.localeCompare(b.concept));
+  const completes = lignesParite.filter(
+    (l) => l.langues.en === "publie" && l.langues.fr === "publie",
+  ).length;
 
   const rows = drafts ?? [];
   const aValider = rows.filter((d) => d.status === "qa_ok");
@@ -251,6 +314,34 @@ export default async function ContenuPage({
         <div className="notice">
           Base PromptLandia non configurée (<code>PROMPTLANDIA_DATABASE_URL</code> absent).
         </div>
+      )}
+
+      {lignesParite.length > 0 && (
+        <>
+          <h2 className="group-title">
+            Parité des langues{" "}
+            <span className="count">
+              ({completes}/{lignesParite.length} concepts complets EN + FR)
+            </span>
+          </h2>
+          <p className="hint">
+            Une leçon = un concept, deux langues. « à enrichir » = publiée mais
+            sans mini-jeux. Corriger un concept, c&apos;est corriger la paire.
+          </p>
+          <div className="table-parite">
+            {lignesParite.map((l) => (
+              <div className="ligne-parite" key={l.concept}>
+                <code className="id">{l.concept}</code>
+                <b>{l.titre}</b>
+                {(["en", "fr"] as const).map((lang) => (
+                  <span key={lang} className={`badge ${ETAT_CLASSE[l.langues[lang] ?? "absent"]}`}>
+                    {lang.toUpperCase()} · {ETAT_LABEL[l.langues[lang] ?? "absent"]}
+                  </span>
+                ))}
+              </div>
+            ))}
+          </div>
+        </>
       )}
 
       {approuves.length > 0 && (

@@ -37,13 +37,27 @@ const CIBLE = process.env.CIBLE ?? "fr";
 const i = process.argv.indexOf("--path");
 const PATH_FILTRE = i >= 0 ? process.argv[i + 1] : null;
 
-const lecons = PATH_FILTRE
-  ? await sql`select id, title, path_id, concept_key from lessons
+const brutes = PATH_FILTRE
+  ? await sql`select id, title, path_id, concept_key, steps from lessons
       where locale = ${SOURCE} and path_id = ${PATH_FILTRE} order by path_id, order_index`
-  : await sql`select id, title, path_id, concept_key from lessons
+  : await sql`select id, title, path_id, concept_key, steps from lessons
       where locale = ${SOURCE} order by path_id, order_index`;
 
-console.log(`${lecons.length} leçon(s) « ${SOURCE} » à jumeler en « ${CIBLE} »\n`);
+// On ne jumelle QUE les leçons déjà JOUABLES (≥ 2 mini-jeux). Leçon
+// apprise le 2026-08-14 : la jumelle reproduit fidèlement sa source, donc
+// jumeler une leçon pauvre produit une leçon pauvre que notre propre QA
+// rejette (7 rejets sur 7 sur la dimension « jeux »). On enrichit
+// d'abord, on traduit ensuite.
+const JEUX = ["build_prompt", "sort_order", "fill_blank"];
+const lecons = brutes.filter((l) => {
+  const t = Array.isArray(l.steps) ? l.steps.map((s) => s?.type) : [];
+  return t.filter((x) => JEUX.includes(x)).length >= 2;
+});
+
+console.log(
+  `${brutes.length} leçon(s) « ${SOURCE} » · ${lecons.length} jouable(s) à jumeler en « ${CIBLE} » ` +
+    `(${brutes.length - lecons.length} encore à enrichir, ignorée(s))\n`,
+);
 
 /** Lance le générateur en sous-processus : un plantage sur UNE leçon ne
  *  doit pas emporter le lot entier. */

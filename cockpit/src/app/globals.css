@@ -322,3 +322,20 @@ details.folded summary:hover { color: var(--danger); }
   flex-wrap: wrap;
   margin: 8px 0 16px;
 }
+
+/* Parité des langues : une ligne par concept, les états côte à côte. */
+.table-parite { display: flex; flex-direction: column; gap: 6px; margin-bottom: 24px; }
+.ligne-parite {
+  display: grid;
+  grid-template-columns: minmax(140px, 22%) 1fr auto auto;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--border, #23232b);
+  border-radius: 10px;
+}
+.ligne-parite b { font-weight: 600; }
+@media (max-width: 720px) {
+  .ligne-parite { grid-template-columns: 1fr auto auto; }
+  .ligne-parite code { grid-column: 1 / -1; }
+}

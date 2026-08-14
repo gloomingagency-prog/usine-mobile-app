@@ -95,5 +95,7 @@ export type LessonDraft = {
   // Langue du contenu ('en', 'fr'…) : le validateur humain doit savoir
   // dans quelle langue il relit — le QA ne le dit pas à sa place.
   locale: string;
+  // Clé de CONCEPT : identifie la même leçon dans toutes les langues.
+  concept_key: string | null;
   created_at: string | null;
 };
