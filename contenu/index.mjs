@@ -272,7 +272,11 @@ const FORMAT_STEPS = `FORMAT DES ÉTAPES (JSON) :
 - {"type":"fill_blank","sentence":str contenant EXACTEMENT un trou "___","correct":str,"distractors":[2-3 mots faux plausibles],"explanation":str} : phrase à trou ;
 - {"type":"try_it","instruction":str,"example":str} : mini-défi créatif à faire SANS écran ou dans l'app, jamais de site externe ; "example" = UN exemple concret de bonne réponse (montré à l'enfant APRÈS son essai, pour apprendre par comparaison).`;
 
-const STRUCTURE = `STRUCTURE OBLIGATOIRE (8 à 12 étapes, la variété fait le rythme) :
+// 9-11 demandé alors que la RÈGLE code autorise 8-12 : la marge sert à la
+// réparation déterministe (un text trop long se découpe en deux étapes).
+// Sans elle, le modèle écrit 12 étapes d'emblée et le moindre texte long
+// devient irréparable → rejets en série (runs FR 2026-08-14).
+const STRUCTURE = `STRUCTURE OBLIGATOIRE (9 à 11 étapes, la variété fait le rythme) :
 - 2 à 5 "text" COURTS qui racontent (jamais deux longs blocs de suite) ;
 - 2 à 3 "quiz" répartis dans la leçon (pas tous à la fin) ;
 - EXACTEMENT 1 "build_prompt" (le moment star de la leçon) ;
@@ -295,7 +299,7 @@ const CONTRAT = `CONTRAT NON NÉGOCIABLE (vérifié par un PROGRAMME — toute v
 - "fill_blank" : la phrase contient EXACTEMENT un "___" (trois underscores, une seule fois) ;
 - JAMAIS "fill_blank" ET "sort_order" dans la même leçon : UN SEUL des deux ;
 - "try_it" est TOUJOURS la dernière étape et a TOUJOURS un "example".
-CHECKLIST AVANT DE RÉPONDRE (fais-la vraiment) : 1) compte tes étapes → entre 8 et 12 ; 2) compte les phrases de CHAQUE "text" → max 3 ; 3) un seul jeu fill_blank OU sort_order ; 4) le "___" apparaît une seule fois dans la phrase du fill_blank ; 5) aucun "your name", aucune donnée personnelle.`;
+CHECKLIST AVANT DE RÉPONDRE (fais-la vraiment) : 1) compte tes étapes → entre 9 et 11 ; 2) compte les phrases de CHAQUE "text" → max 3 ; 3) un seul jeu fill_blank OU sort_order ; 4) le "___" apparaît une seule fois dans la phrase du fill_blank ; 5) aucun "your name", aucune donnée personnelle.`;
 
 const systemeRedaction = `Tu es un auteur JEUNESSE talentueux qui écrit des leçons-jeux ${LANGUES[LOCALE].directive} pour PromptLandia (app 6-12 ans : apprendre à parler aux IA, coding/STEM ludique). Ta leçon doit être un PETIT JEU D'AVENTURE captivant, pas un cours.
 ${FORMAT_STEPS}
