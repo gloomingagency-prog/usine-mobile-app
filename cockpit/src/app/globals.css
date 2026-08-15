@@ -339,3 +339,58 @@ details.folded summary:hover { color: var(--danger); }
   .ligne-parite { grid-template-columns: 1fr auto auto; }
   .ligne-parite code { grid-column: 1 / -1; }
 }
+
+/* Bouton d'installation : action principale de la fiche app, pressée
+   depuis un téléphone — cible large, pas un lien dans une phrase. */
+.bouton-installer {
+  display: block;
+  text-align: center;
+  padding: 14px 18px;
+  border-radius: 12px;
+  font-weight: 700;
+  text-decoration: none;
+  margin: 12px 0;
+}
+
+/* --- Pilotage depuis un mobile -------------------------------------
+   Le cockpit sert à valider du contenu et à récupérer un lien
+   d'installation : ces gestes se font depuis un téléphone, pas
+   uniquement depuis un bureau. */
+@media (max-width: 640px) {
+  body { font-size: 15px; }
+  main, .page { padding-left: 14px; padding-right: 14px; }
+
+  /* Les entêtes de cartes empilent au lieu de déborder. */
+  .card .head {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  /* Toute cible tactile atteint la taille recommandée. */
+  button, .primary, .badge, nav.main a {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  /* Navigation : défilement horizontal plutôt que retour à la ligne
+     illisible sur quatre lignes. */
+  nav.main {
+    display: flex;
+    overflow-x: auto;
+    gap: 8px;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  nav.main::-webkit-scrollbar { display: none; }
+  nav.main a { white-space: nowrap; flex: 0 0 auto; }
+
+  /* Les tableaux larges (parité des langues, coûts) défilent DANS leur
+     conteneur au lieu de faire déborder la page entière. */
+  .table-parite, .ligne-parite { min-width: 0; }
+  .ligne-parite { grid-template-columns: 1fr auto; }
+  .ligne-parite code { grid-column: 1 / -1; font-size: 11px; }
+
+  /* Un pavé de code ne doit jamais élargir la page. */
+  pre, code { overflow-x: auto; max-width: 100%; }
+}

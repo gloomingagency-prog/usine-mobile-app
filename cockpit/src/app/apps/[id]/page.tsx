@@ -103,13 +103,15 @@ export default async function AppFichePage({ params }: { params: Promise<{ id: s
             </span>
             {meta.lastBuild.at && <span className="id">{meta.lastBuild.at.slice(0, 16).replace("T", " ")} UTC</span>}
           </div>
+          {/* Le lien d'installation est l'action principale de cette
+              carte, et elle se fait DEPUIS UN TÉLÉPHONE : bouton pleine
+              largeur, pas un lien noyé dans une phrase. */}
+          {meta.lastBuild.artifact && meta.lastBuild.status === "finished" && (
+            <a className="primary bouton-installer" href={meta.lastBuild.artifact}>
+              📲 Installer l&apos;app (APK)
+            </a>
+          )}
           <p className="detail">
-            {meta.lastBuild.artifact && (
-              <>
-                <a href={meta.lastBuild.artifact}>Installer (APK)</a>
-                {" · "}
-              </>
-            )}
             {meta.lastBuild.url && (
               <a href={meta.lastBuild.url} target="_blank" rel="noreferrer">
                 page du build
