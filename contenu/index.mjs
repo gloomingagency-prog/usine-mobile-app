@@ -501,13 +501,25 @@ const lecons = await sql`
   select id, title, order_index, left(content, 300) as resume
   from lessons where path_id = ${PATH_ID} order by order_index`;
 const brouillonsExistants = await sql`
-  select title, status, enriches_lesson_id from lesson_drafts where path_id = ${PATH_ID}`;
+  select title, status, enriches_lesson_id, published_lesson_id
+  from lesson_drafts where path_id = ${PATH_ID}`;
 // En mode enrich, le titre d'origine est LÉGITIMEMENT repris (la leçon
 // est remplacée) — il sort de la liste d'exclusion.
 const titresExistants = [
   ...lecons.filter((l) => !leconOrigine || l.id !== leconOrigine.id).map((l) => l.title),
   ...brouillonsExistants
-    .filter((d) => !leconOrigine || d.enriches_lesson_id !== leconOrigine.id)
+    // En enrichissement, le titre d'origine est légitimement repris. Il
+    // faut donc écarter DEUX familles de brouillons : ceux qui enrichissent
+    // déjà cette leçon, et surtout CELUI QUI L'A CRÉÉE — il porte le même
+    // titre sans être marqué comme enrichissement, et bloquait donc à vie
+    // toute amélioration de la leçon qu'il avait produite (constat
+    // 2026-08-16 : deux leçons aux scores excellents rejetées en boucle
+    // pour « titre redondant », sans autre erreur).
+    .filter(
+      (d) =>
+        !leconOrigine ||
+        (d.enriches_lesson_id !== leconOrigine.id && d.published_lesson_id !== leconOrigine.id),
+    )
     .map((d) => d.title),
 ];
 const ordreMax = lecons.reduce((m, l) => Math.max(m, l.order_index), 0);
