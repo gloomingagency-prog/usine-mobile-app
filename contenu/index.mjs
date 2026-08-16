@@ -520,10 +520,50 @@ console.log(
 );
 console.log(`Génération de ${COUNT} brouillon(s) v2 (qualité d'abord)…`);
 
+/**
+ * Personnages RÉCURRENTS déjà présents dans le parcours.
+ *
+ * Constat du 2026-08-16 : les leçons générées ont fait émerger d'elles-
+ * mêmes un héros par parcours — Milo pour les prompts, Pixel l'artiste,
+ * Pip le robot cuisinier pour le code, Maya pour les métiers — avec même
+ * des rappels d'une leçon à l'autre (« Pip is back… »). C'est ce qui
+ * transforme une liste de leçons en série qu'un enfant a envie de
+ * suivre. On ne laisse plus cette qualité au hasard : on rend le casting
+ * existant au modèle pour qu'il le REPRENNE au lieu d'inventer un
+ * nouveau personnage à chaque fois.
+ */
+function personnagesDuParcours(lecons) {
+  const compte = new Map();
+  const BANALS = new Set([
+    "The","This","That","You","Your","What","When","Where","How","Why","And","But","For","With",
+    "Now","Let","Help","Great","Did","Meet","Welcome","Every","Each","First","Next","Last",
+    "Cette","Elle","Tout","Pour","Mais","Quand","Comment","Voici","Bravo","Super","Chaque","Les",
+    "Maintenant","Oui","Non","Prompt","Robot","Robots",
+  ]);
+  for (const l of lecons) {
+    const texte = String(l.resume ?? "");
+    for (const m of texte.matchAll(/\b([A-Z][a-zà-ÿ]{2,10})\b/g)) {
+      const mot = m[1];
+      if (BANALS.has(mot)) continue;
+      compte.set(mot, (compte.get(mot) ?? 0) + 1);
+    }
+  }
+  // Un personnage se distingue d'un mot de début de phrase par sa
+  // RÉCURRENCE : au moins deux apparitions.
+  return [...compte.entries()].filter(([, n]) => n >= 2).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([m]) => m);
+}
+
+const casting = personnagesDuParcours(lecons);
+
 const contexteParcours = `PARCOURS: ${parcours.title} (catégorie ${parcours.category}, niveau ${parcours.difficulty})
 DESCRIPTION: ${parcours.description}
 LEÇONS DÉJÀ PUBLIÉES (ne PAS répéter leur contenu):
-${lecons.map((l) => `${l.order_index}. ${l.title} — ${String(l.resume).replace(/\s+/g, " ").slice(0, 200)}`).join("\n")}`;
+${lecons.map((l) => `${l.order_index}. ${l.title} — ${String(l.resume).replace(/\s+/g, " ").slice(0, 200)}`).join("\n")}${
+  casting.length
+    ? `\n\nPERSONNAGE(S) RÉCURRENT(S) DE CE PARCOURS : ${casting.join(", ")}.
+REPRENDS-LE(S) plutôt que d'inventer un nouveau héros : l'enfant suit une SÉRIE, et retrouver le même compagnon d'une leçon à l'autre est ce qui lui donne envie de continuer. Tu peux faire un clin d'œil à ce qu'il a vécu dans les leçons précédentes.`
+    : ""
+}`;
 
 let generes = 0;
 let okCount = 0;
