@@ -100,6 +100,27 @@ const nbPhrases = (t) =>
 const uniques = (arr) => new Set(arr.map((o) => String(o).trim().toLowerCase())).size === arr.length;
 
 /**
+ * Longueur maximale d'une pastille (build_prompt) ou d'une option
+ * (fill_blank). C'est une contrainte d'ÉCRAN, pas de style.
+ *
+ * Portée de 40 à 48 le 2026-08-16. La limite à 40 bloquait quatre
+ * jumelles françaises d'affilée, toutes pour la MÊME raison : une seule
+ * pastille à 43-44 caractères. Le français est structurellement plus
+ * long que l'anglais — mesuré sur les 633 pastilles publiées : médiane
+ * 12 en anglais contre 16 en français, 9e décile 22 contre 27, maximum
+ * 38 contre 40, soit collé au plafond. La règle ne mesurait donc plus
+ * la lisibilité, elle taxait une langue.
+ *
+ * 48 reste une vraie borne : le texte d'une pastille passe à la ligne à
+ * l'intérieur de la pastille (aucune troncature dans LessonPlayer), et
+ * 48 caractères tiennent sur deux lignes même à la plus grande taille
+ * de police tolérée. Une phrase entière, elle, reste refusée : le jeu
+ * consiste à ASSEMBLER des morceaux, pas à cocher une réponse toute
+ * faite.
+ */
+const MAX_CHIP_CHARS = 48;
+
+/**
  * Détecte une OPPOSITION VIDE : une question qui annonce une différence
  * entre deux citations… identiques.
  *
@@ -305,8 +326,8 @@ export function qaRegleCode(brouillon, titresExistants, locale = "en") {
       if (typeof s.instruction !== "string" || !s.instruction.trim() || s.instruction.length > 300)
         erreurs.push(`${ou} (build_prompt) : instruction manquante ou > 300 caractères`);
       const chips = Array.isArray(s.chips) ? s.chips : [];
-      if (chips.length < 4 || chips.length > 10 || !chips.every((c) => typeof c === "string" && c.trim() && c.length <= 40))
-        erreurs.push(`${ou} (build_prompt) : 4-10 chips non vides ≤ 40 caractères attendues`);
+      if (chips.length < 4 || chips.length > 10 || !chips.every((c) => typeof c === "string" && c.trim() && c.length <= MAX_CHIP_CHARS))
+        erreurs.push(`${ou} (build_prompt) : 4-10 chips non vides ≤ ${MAX_CHIP_CHARS} caractères attendues`);
       if (!uniques(chips)) erreurs.push(`${ou} (build_prompt) : chips non uniques`);
       const ci = Array.isArray(s.correct_indices) ? s.correct_indices : [];
       if (ci.length < 3 || ci.length > chips.length || new Set(ci).size !== ci.length ||
@@ -337,8 +358,8 @@ export function qaRegleCode(brouillon, titresExistants, locale = "en") {
       else if ((s.sentence.match(/___/g) ?? []).length !== 1)
         erreurs.push(`${ou} (fill_blank) : la phrase doit contenir EXACTEMENT un trou « ___ »`);
       const opts = Array.isArray(s.options) ? s.options : [];
-      if (opts.length < 3 || opts.length > 4 || !opts.every((o) => typeof o === "string" && o.trim() && o.length <= 40))
-        erreurs.push(`${ou} (fill_blank) : 3-4 options non vides ≤ 40 caractères attendues`);
+      if (opts.length < 3 || opts.length > 4 || !opts.every((o) => typeof o === "string" && o.trim() && o.length <= MAX_CHIP_CHARS))
+        erreurs.push(`${ou} (fill_blank) : 3-4 options non vides ≤ ${MAX_CHIP_CHARS} caractères attendues`);
       if (!uniques(opts)) erreurs.push(`${ou} (fill_blank) : options non uniques`);
       if (!Number.isInteger(s.correct_index) || s.correct_index < 0 || s.correct_index >= opts.length)
         erreurs.push(`${ou} (fill_blank) : correct_index hors des options`);
