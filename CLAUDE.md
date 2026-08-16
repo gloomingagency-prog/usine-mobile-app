@@ -11,8 +11,16 @@ l'argent.**
 
 ## Structure
 
-- `cockpit/` — dashboard Next.js 15 + Drizzle + Neon, déployé sur Vercel
-  (projet `usine-cockpit`, CLI ; root directory `cockpit`).
+- `cockpit/` — dashboard Next.js 15 + Drizzle + Neon, déployé sur Vercel.
+  **Projet Vercel = `usine-apps-mobile`** (nom trompeur : c'est bien le
+  cockpit, il sert `usine-cockpit.vercel.app` et porte les variables
+  d'environnement). Root directory `cockpit` → **déployer depuis la
+  RACINE du dépôt**, jamais depuis `cockpit/` : lancer la commande dans
+  le sous-dossier crée un projet DOUBLON, vide de variables, qui répond
+  503 pendant que l'URL réelle sert une version périmée (incident
+  2026-08-16 : deux déploiements perdus sans erreur visible).
+  Après tout déploiement, vérifier sur l'URL RÉELLE, pas sur celle que
+  la CLI renvoie.
 - `radar/` — étage 0, cron VPS quotidien 05:30 UTC (docker node:22-alpine).
 - `gate/` — étage 1, cron VPS horaire :15. DeepSeek argumente, le code
   calcule le verdict go/pivot/kill.
