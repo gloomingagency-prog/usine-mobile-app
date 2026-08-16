@@ -99,6 +99,45 @@ const nbPhrases = (t) =>
     .filter((p) => p.trim().length > 1).length;
 const uniques = (arr) => new Set(arr.map((o) => String(o).trim().toLowerCase())).size === arr.length;
 
+/**
+ * Détecte une OPPOSITION VIDE : une question qui annonce une différence
+ * entre deux citations… identiques.
+ *
+ * Incident 2026-08-16, brouillon « Chasse aux bugs » :
+ *   « Le robot dit "Bonjour le monde" au lieu de "Bonjour le monde"…
+ *     attends, il manque une lettre ! C'est quoi, ce bug ? »
+ * L'enfant doit repérer une faute qu'on ne lui montre pas. La leçon est
+ * injouable, et pourtant elle a franchi la QA : la contre-lecture IA
+ * avait bien SIGNALÉ le problème dans `problemes`, mais ce champ est du
+ * texte libre que rien ne contrôle, et tous les scores chiffrés
+ * passaient. D'où cette règle CODE — le verdict doit se calculer, pas
+ * se lire (règle 8 du dépôt).
+ *
+ * @returns le motif de rejet, ou `null` si la question est saine.
+ */
+export function oppositionVide(question) {
+  if (typeof question !== "string") return null;
+  // « X au lieu de Y », « X instead of Y », « X et non Y ».
+  const marqueurs = /\s(?:au lieu de|à la place de|et non|instead of|rather than)\s/i;
+  if (!marqueurs.test(question)) return null;
+
+  // Citations françaises (« … ») ou anglaises ("…" / “…”).
+  const citations = [...question.matchAll(/«\s*([^»]+?)\s*»|"([^"]+?)"|“([^”]+?)”/g)].map(
+    (m) => (m[1] ?? m[2] ?? m[3]).trim(),
+  );
+  if (citations.length < 2) return null;
+
+  const vues = new Set();
+  for (const c of citations) {
+    const cle = c.toLowerCase();
+    if (vues.has(cle)) {
+      return `la question oppose deux citations IDENTIQUES (« ${c} ») — la différence à trouver n'est pas montrée`;
+    }
+    vues.add(cle);
+  }
+  return null;
+}
+
 
 export const SEUIL_SCORE_IA = 80;
 
@@ -245,6 +284,8 @@ export function qaRegleCode(brouillon, titresExistants, locale = "en") {
         erreurs.push(`${ou} (quiz) : correct_index hors des options`);
       if (typeof s.explanation !== "string" || !s.explanation.trim() || s.explanation.length > MAX_TEXT_CHARS)
         erreurs.push(`${ou} (quiz) : explication manquante ou > ${MAX_TEXT_CHARS} caractères`);
+      const opposition = oppositionVide(s.question);
+      if (opposition) erreurs.push(`${ou} (quiz) : ${opposition}`);
     } else if (s.type === "tap_reveal") {
       compte.tap_reveal++;
       if (typeof s.prompt !== "string" || !s.prompt.trim() || s.prompt.length > 200)
