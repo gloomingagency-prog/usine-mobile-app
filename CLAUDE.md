@@ -70,6 +70,17 @@ l'argent.**
 11. **Grouper les commits** (quotas Vercel : les déploiements CLI partent
     à chaque `deploy`, pas à chaque push tant que l'app GitHub Vercel
     n'est pas installée).
+12. **Ce qui est PROPRE À UNE APP vit dans sa fiche cockpit, pas dans son
+    dépôt.** L'usine produit un portfolio : tout artefact rangé dans le
+    dépôt d'une app finit recopié à la main dans la suivante, donc faux.
+    `apps.meta` porte l'identité éditoriale et visuelle
+    (`identite : {promesse, public, ton, couleurs, motifs, aEviter}`),
+    et le cockpit en DÉDUIT ce dont le propriétaire a besoin — à
+    commencer par le prompt de la bannière de store
+    (`src/lib/prompt-banniere.ts`), affiché sur `/apps/<id>` avec un
+    bouton « copier », parce que le cockpit se consulte au téléphone.
+    Rien de dérivé n'est stocké : on recalcule, sinon deux vérités
+    dérivent.
 
 ## Décisions actées (détail : cockpit /decisions et docs/planning/)
 

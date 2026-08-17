@@ -7,6 +7,8 @@ export const dynamic = "force-dynamic";
 
 import { STATUS_LABEL, statusBadgeClass } from "@/lib/app-status";
 import { basculerMaillon } from "./actions";
+import { BlocBanniere } from "./banniere";
+import { promptBanniere, manquesIdentite, type IdentiteApp } from "@/lib/prompt-banniere";
 
 type Maillon = { code: string; titre: string; fait: boolean };
 type Attente = { texte: string; qui: string; fait?: boolean };
@@ -24,6 +26,8 @@ type Meta = {
   maillons?: Maillon[];
   attentes?: Attente[];
   lastBuild?: LastBuild;
+  /** Identité éditoriale et visuelle — nourrit le prompt de bannière. */
+  identite?: IdentiteApp;
 };
 
 export default async function AppFichePage({ params }: { params: Promise<{ id: string }> }) {
@@ -42,6 +46,11 @@ export default async function AppFichePage({ params }: { params: Promise<{ id: s
     .limit(50);
   const maillons = meta.maillons ?? [];
   const faits = maillons.filter((m) => m.fait).length;
+  // Le prompt de bannière est RECALCULÉ à chaque affichage, jamais
+  // stocké : changer la promesse d'une app change son prompt, sans
+  // rien à resynchroniser nulle part.
+  const prompt = promptBanniere(app.name, meta.identite);
+  const manques = manquesIdentite(meta.identite);
 
   return (
     <>
@@ -187,6 +196,8 @@ export default async function AppFichePage({ params }: { params: Promise<{ id: s
           </div>
         </>
       )}
+
+      <BlocBanniere prompt={prompt} manques={manques} />
 
       <h2>Historique d&apos;états</h2>
       {events.length === 0 && <p className="empty">Aucun événement.</p>}
