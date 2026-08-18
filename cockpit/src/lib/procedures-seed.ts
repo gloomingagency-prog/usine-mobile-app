@@ -10,6 +10,36 @@
 // qui compte, c'est l'ORDRE et les pièges, pas la copie exacte d'un
 // formulaire. Vérifier l'écran réel prime toujours sur ce texte.
 
+
+// ENTITÉ JURIDIQUE de l'usine — celle qui encaisse.
+//
+// Ces informations sont recopiées dans des formulaires (Dun &
+// Bradstreet, Play Console, profil de paiement) où la moindre variation
+// fait échouer une vérification. Elles vivent donc ici, à un seul
+// endroit, telles qu'elles figurent sur les documents officiels.
+//
+// CE QUI N'Y FIGURE PAS, VOLONTAIREMENT : le numéro fiscal fédéral
+// (EIN) une fois obtenu. C'est un identifiant fiscal ; sa place est un
+// gestionnaire de mots de passe, pas une base de données applicative
+// derrière une simple authentification. Le cockpit rappelle qu'il
+// existe et où le chercher, il ne le stocke pas.
+export const ENTITE = {
+  nom: "MARNWELL LLC",
+  forme: "Single-member LLC (société à responsabilité limitée à associé unique)",
+  etat: "New Mexico, États-Unis",
+  idEtat: "0008118714",
+  numeroDepot: "3273477",
+  dateConstitution: "23 juillet 2026",
+  adresse: "15442 Ventura Blvd, Ste 201-2828, Sherman Oaks, CA 91403, USA",
+  agentEnregistre:
+    "Registered Agents Inc — 1209 Mountain Road Pl NE, Ste R, Albuquerque, NM 87110",
+  associe: "Mehdi Faid — 100 %",
+  activiteDeclaree: "Digital Services",
+  exerciceComptable: "clôture en décembre · déclaration au 15 avril",
+  rapportAnnuel: "aucun (le Nouveau-Mexique n'en exige pas pour une LLC)",
+  einStatut: "PAS ENCORE OBTENU — en attente de la signature des formulaires SS-4 et 8821",
+} as const;
+
 export type EtapeProcedure = {
   code: string;
   titre: string;
@@ -40,23 +70,30 @@ export const PROCEDURES: ProcedureSeed[] = [
     rang: 1,
     etapes: [
       {
-        code: "entite",
-        titre: "Vérifier que l'entité juridique existe vraiment",
+        code: "ss4",
+        titre: "Signer les formulaires SS-4 et 8821 — LE blocage",
         detail:
-          "Un numéro D-U-N-S s'attribue à une entreprise ENREGISTRÉE. Si Glooming Agency n'est pas déjà immatriculée (SASU, EURL, micro-entreprise…), c'est la toute première chose à faire : rien d'autre ne peut avancer. Noter la dénomination légale EXACTE et l'adresse du siège telles qu'elles figurent sur l'avis d'immatriculation.",
+          "Le numéro fiscal fédéral (EIN) de Marnwell LLC n'existe pas encore : les deux formulaires attendent une signature. Sans EIN, le profil de PAIEMENT de Google Play ne peut pas être créé — donc aucun abonnement ne peut être encaissé, même si l'app est publiée. Le SS-4 demande le numéro, le 8821 autorise le prestataire à le récupérer auprès de l'IRS.",
         qui: "humain",
         attention:
-          "Tout le reste de la démarche compare des chaînes de caractères. « Glooming Agency » et « Glooming Agency SASU » sont deux entités différentes aux yeux de Google. Recopier au caractère près, accents et forme juridique compris.",
+          "L'associé est déclaré « FOREIGN/NON-DOMESTIC » (sans numéro fiscal américain) : l'EIN ne peut donc PAS être obtenu en ligne. Il passe par fax ou téléphone auprès de l'IRS, et se compte en semaines, pas en jours. C'est la démarche la plus longue de toutes — la lancer AUJOURD'HUI, en parallèle du D-U-N-S, et non après.",
+      },
+      {
+        code: "ein-attente",
+        titre: "Attendre l'attribution de l'EIN",
+        detail:
+          "L'IRS renvoie le numéro au prestataire désigné, qui le transmet. Le conserver dans un gestionnaire de mots de passe — il ne sera jamais stocké dans le cockpit.",
+        qui: "attente",
       },
       {
         code: "duns-demande",
         titre: "Demander le numéro D-U-N-S",
         detail:
-          "Gratuit, auprès de Dun & Bradstreet. La console Play propose un lien de demande dédié — l'emprunter plutôt que le formulaire générique, il est rattaché à la demande Google. Renseigner la dénomination légale et l'adresse relevées à l'étape précédente, à l'identique.",
+          "Gratuit, auprès de Dun & Bradstreet. La console Play propose un lien de demande dédié — l'emprunter plutôt que le formulaire générique, il est rattaché à la demande Google. Recopier la fiche d'identité ci-dessus À L'IDENTIQUE : « MARNWELL LLC », l'adresse de Sherman Oaks, l'État du Nouveau-Mexique.",
         qui: "humain",
         lien: "https://support.google.com/googleplay/android-developer/answer/9934824",
         attention:
-          "Si l'entreprise possède DÉJÀ un D-U-N-S sans le savoir (c'est fréquent), en demander un second crée un doublon qui bloque la vérification. Chercher d'abord dans l'outil de recherche de D&B.",
+          "Marnwell LLC a été constituée en juillet 2026 : Dun & Bradstreet n'en a probablement aucune trace, la demande part donc de zéro. Vérifier quand même dans son outil de recherche — un doublon bloque la vérification. Attendez-vous aussi à ce que Google demande des justificatifs supplémentaires : une société récente, à une adresse de domiciliation, attire l'examen.",
       },
       {
         code: "duns-attente",

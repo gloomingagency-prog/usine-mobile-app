@@ -1,2 +1,8 @@
 .vercel/
 .vercel
+
+# Documents juridiques de l'entité (statuts, formulaires fiscaux signés).
+# Ils contiennent des informations personnelles et fiscales : ils vivent
+# sur la machine et dans un coffre, jamais dans un dépôt Git — même privé,
+# un dépôt se clone, se sauvegarde et s'exporte sans qu'on y pense.
+docs/Marnwell LLC/

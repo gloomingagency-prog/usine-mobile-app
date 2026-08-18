@@ -1,6 +1,7 @@
 import { asc } from "drizzle-orm";
 import { getDb, schema } from "@/db";
-import { PROCEDURES, type EtapeProcedure } from "@/lib/procedures-seed";
+import { PROCEDURES, ENTITE, type EtapeProcedure } from "@/lib/procedures-seed";
+import { FicheEntite } from "./entite";
 import { basculerEtape } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -49,6 +50,27 @@ export default async function ComptesPage() {
         Ces démarches ne dépendent d&apos;aucune app. Tant qu&apos;elles ne sont pas
         faites, rien ne se publie — quel que soit l&apos;état du code.
       </p>
+
+      <div style={{ marginTop: 24 }}>
+        <FicheEntite
+          nom={ENTITE.nom}
+          lignes={[
+            { label: "Dénomination légale", valeur: ENTITE.nom },
+            { label: "Forme", valeur: ENTITE.forme },
+            { label: "État de constitution", valeur: ENTITE.etat },
+            { label: "Identifiant d'État", valeur: ENTITE.idEtat },
+            { label: "Numéro de dépôt", valeur: ENTITE.numeroDepot },
+            { label: "Date de constitution", valeur: ENTITE.dateConstitution },
+            { label: "Adresse (siège et courrier)", valeur: ENTITE.adresse },
+            { label: "Agent enregistré", valeur: ENTITE.agentEnregistre },
+            { label: "Associé", valeur: ENTITE.associe },
+            { label: "Activité déclarée", valeur: ENTITE.activiteDeclaree },
+            { label: "Exercice comptable", valeur: ENTITE.exerciceComptable },
+            { label: "Rapport annuel", valeur: ENTITE.rapportAnnuel },
+            { label: "Numéro fiscal fédéral (EIN)", valeur: ENTITE.einStatut, alerte: true },
+          ]}
+        />
+      </div>
 
       {procedures.map((p) => {
         const faites = p.etapes.filter((e) => e.fait).length;
