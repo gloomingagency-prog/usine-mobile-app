@@ -37,7 +37,7 @@ export const ENTITE = {
   activiteDeclaree: "Digital Services",
   exerciceComptable: "clôture en décembre · déclaration au 15 avril",
   rapportAnnuel: "aucun (le Nouveau-Mexique n'en exige pas pour une LLC)",
-  einStatut: "PAS ENCORE OBTENU — en attente de la signature des formulaires SS-4 et 8821",
+  einStatut: "EN COURS D'OBTENTION auprès de l'IRS (SS-4 et 8821 déposés, 18/08/2026)",
 } as const;
 
 export type EtapeProcedure = {
@@ -71,18 +71,18 @@ export const PROCEDURES: ProcedureSeed[] = [
     etapes: [
       {
         code: "ss4",
-        titre: "Signer les formulaires SS-4 et 8821 — LE blocage",
+        titre: "Déposer les formulaires SS-4 et 8821",
         detail:
-          "Le numéro fiscal fédéral (EIN) de Marnwell LLC n'existe pas encore : les deux formulaires attendent une signature. Sans EIN, le profil de PAIEMENT de Google Play ne peut pas être créé — donc aucun abonnement ne peut être encaissé, même si l'app est publiée. Le SS-4 demande le numéro, le 8821 autorise le prestataire à le récupérer auprès de l'IRS.",
+          "Fait le 18/08/2026. Le SS-4 demande le numéro fiscal fédéral (EIN), le 8821 autorise le prestataire à le récupérer auprès de l'IRS. Sans EIN, le profil de PAIEMENT de Google Play ne peut pas être créé — donc aucun abonnement ne peut être encaissé, même app publiée.",
         qui: "humain",
         attention:
-          "L'associé est déclaré « FOREIGN/NON-DOMESTIC » (sans numéro fiscal américain) : l'EIN ne peut donc PAS être obtenu en ligne. Il passe par fax ou téléphone auprès de l'IRS, et se compte en semaines, pas en jours. C'est la démarche la plus longue de toutes — la lancer AUJOURD'HUI, en parallèle du D-U-N-S, et non après.",
+          "L'associé est déclaré « FOREIGN/NON-DOMESTIC » (sans numéro fiscal américain) : l'EIN ne pouvait donc pas être obtenu en ligne, il passe par l'IRS en fax ou par téléphone. C'est la démarche la plus longue de toutes — d'où l'intérêt de mener le D-U-N-S EN PARALLÈLE plutôt qu'à la suite.",
       },
       {
         code: "ein-attente",
         titre: "Attendre l'attribution de l'EIN",
         detail:
-          "L'IRS renvoie le numéro au prestataire désigné, qui le transmet. Le conserver dans un gestionnaire de mots de passe — il ne sera jamais stocké dans le cockpit.",
+          "En cours. L'IRS renvoie le numéro au prestataire désigné (formulaire 8821), qui le transmet. Le conserver dans un gestionnaire de mots de passe — il ne sera jamais stocké dans le cockpit. Pendant cette attente, RIEN n'empêche d'avancer le D-U-N-S : les deux sont indépendants jusqu'au profil de paiement.",
         qui: "attente",
       },
       {
