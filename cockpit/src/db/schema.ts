@@ -127,3 +127,27 @@ export const decisions = pgTable("decisions", {
   commentaire: text("commentaire"),
   decideLe: timestamp("decide_le", { withTimezone: true }),
 });
+
+// DÉMARCHES ADMINISTRATIVES de l'usine — comptes développeur, entité
+// juridique, vérifications. Elles ne sont propres à AUCUNE app : elles
+// conditionnent tout le portfolio, et elles se font une fois.
+//
+// Elles vivent en base plutôt que dans un document parce qu'elles se
+// SUIVENT : chaque étape se coche depuis le téléphone, au moment où
+// elle est faite, pendant qu'on est devant le formulaire — pas le soir
+// dans un fichier qu'on oublie de mettre à jour.
+export const procedures = pgTable("procedures", {
+  id: text("id").primaryKey(),
+  titre: text("titre").notNull(),
+  /** Pourquoi cette démarche existe, et ce qu'elle débloque. */
+  pourquoi: text("pourquoi"),
+  /** Ordre d'affichage — les démarches ont une chronologie. */
+  rang: integer("rang").notNull().default(0),
+  /**
+   * Étapes : [{ code, titre, detail, qui, fait, lien, attention }].
+   * `qui` : 'humain' (le propriétaire agit) ou 'attente' (on attend un
+   * tiers — utile pour distinguer « à faire » de « rien à faire »).
+   */
+  etapes: jsonb("etapes"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
