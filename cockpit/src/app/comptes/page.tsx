@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { asc } from "drizzle-orm";
 import { getDb, schema } from "@/db";
 import { PROCEDURES, ENTITE, type EtapeProcedure } from "@/lib/procedures-seed";
@@ -51,7 +52,21 @@ export default async function ComptesPage() {
         faites, rien ne se publie — quel que soit l&apos;état du code.
       </p>
 
-      <div style={{ marginTop: 24 }}>
+      {/* Sommaire : la page est longue, et l'identité de l'entité s'y
+          perdait entre les listes d'étapes. */}
+      <p className="meta" style={{ marginTop: 12 }}>
+        Sur cette page : <a href="#entite">l&apos;entité</a>
+        {PROCEDURES.map((p) => (
+          <span key={p.id}>
+            {" · "}
+            <a href={`#${p.id}`}>{p.titre.split(" — ")[0]}</a>
+          </span>
+        ))}
+        {" · "}
+        <Link href="/apps/promptlandia">fiche de l&apos;app →</Link>
+      </p>
+
+      <div id="entite" style={{ marginTop: 24, scrollMarginTop: 16 }}>
         <FicheEntite
           nom={ENTITE.nom}
           lignes={[
@@ -77,7 +92,7 @@ export default async function ComptesPage() {
         const total = p.etapes.length;
         const prochaine = p.etapes.find((e) => !e.fait);
         return (
-          <section key={p.id} className="carte" style={{ marginTop: 24 }}>
+          <section key={p.id} id={p.id} className="carte" style={{ marginTop: 24, scrollMarginTop: 16 }}>
             <h2>{p.titre}</h2>
             <p className="meta">{p.pourquoi}</p>
 

@@ -224,4 +224,64 @@ export const PROCEDURES: ProcedureSeed[] = [
       },
     ],
   },
+  {
+    id: "apple-developer",
+    titre: "Compte Apple Developer — organisation",
+    pourquoi:
+      "Différé volontairement (décision D2) : Google d'abord, Apple ensuite, pour ne pas payer deux abonnements avant d'avoir vendu quoi que ce soit. À lancer quand la première app est publiée sur Google Play — le châssis est déjà multiplateforme, la sortie iOS sera une build et une fiche, pas un chantier.",
+    rang: 3,
+    etapes: [
+      {
+        code: "apple-cout",
+        titre: "Accepter le coût : 99 $ PAR AN",
+        detail:
+          "Contrairement à Google (25 $ une fois), Apple facture un abonnement annuel reconductible. C'est un coût fixe de l'usine, à porter dans les coûts avant de s'engager.",
+        qui: "humain",
+        attention:
+          "Ne pas le prendre « pour être prêt ». Tant qu'aucune app n'est en état de sortir sur iOS, l'abonnement court pour rien — et il se reconduit tout seul.",
+      },
+      {
+        code: "apple-duns",
+        titre: "Réutiliser le D-U-N-S de Marnwell LLC",
+        detail:
+          "Apple exige lui aussi un D-U-N-S pour un compte organisation. C'est le MÊME numéro que celui obtenu pour Google : rien à redemander. Voilà pourquoi la démarche Google doit être faite en premier.",
+        qui: "humain",
+      },
+      {
+        code: "apple-identifiant",
+        titre: "Créer l'identifiant Apple de l'entreprise",
+        detail:
+          "Un identifiant Apple dédié à Marnwell LLC, avec l'adresse e-mail professionnelle, jamais un compte personnel existant. Authentification à deux facteurs obligatoire.",
+        qui: "humain",
+        attention:
+          "Ce compte détiendra toutes les apps du portfolio sur iOS. Le rattacher à une adresse personnelle, c'est lier le patrimoine de l'usine à une boîte mail privée — et rendre toute cession impossible.",
+      },
+      {
+        code: "apple-inscription",
+        titre: "S'inscrire au Apple Developer Program",
+        detail:
+          "Choisir « Organization ». Apple demande la dénomination légale, le D-U-N-S, l'adresse et un site web de l'entreprise.",
+        qui: "humain",
+        lien: "https://developer.apple.com/programs/enroll/",
+        attention:
+          "Apple vérifie souvent par un APPEL TÉLÉPHONIQUE à un numéro qu'il trouve lui-même dans les registres publics, pas celui qu'on déclare. Vérifier que le numéro rattaché à Marnwell LLC chez Dun & Bradstreet est bien joignable, sinon la vérification échoue sans explication.",
+      },
+      {
+        code: "apple-verif",
+        titre: "Attendre la vérification d'Apple",
+        detail:
+          "Compter plusieurs jours, parfois davantage pour une société récente.",
+        qui: "attente",
+      },
+      {
+        code: "apple-43",
+        titre: "Relire la règle 4.3 avant toute soumission",
+        detail:
+          "Apple refuse les apps qui se ressemblent trop entre elles, et sanctionne le COMPTE, pas seulement l'app. Une usine qui publie plusieurs apps y est exposée par construction : chaque app doit avoir une raison d'exister distincte, visible dès la fiche.",
+        qui: "humain",
+        attention:
+          "C'est le risque fatal du portfolio (règle 5 du dépôt). Un flot d'apps similaires met le compte entier en danger, et un bannissement Apple est définitif.",
+      },
+    ],
+  },
 ];

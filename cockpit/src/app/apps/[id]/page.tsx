@@ -56,6 +56,10 @@ export default async function AppFichePage({ params }: { params: Promise<{ id: s
     <>
       <p className="meta">
         <Link href="/apps">← Portfolio</Link>
+        {" · "}
+        {/* Le blocage d'une app n'est pas toujours dans son code : sans
+            compte développeur, rien ne sort. Le lien évite de chercher. */}
+        <Link href="/comptes">Entité &amp; comptes développeur</Link>
       </p>
       <p className="eyebrow">Fiche app · pipeline vivant</p>
       <h1>
