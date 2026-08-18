@@ -9,6 +9,12 @@
 // préavis. Chaque étape dit ce qu'on sait au moment où on l'écrit ; ce
 // qui compte, c'est l'ORDRE et les pièges, pas la copie exacte d'un
 // formulaire. Vérifier l'écran réel prime toujours sur ce texte.
+//
+// RÈGLE SUR LES LIENS : n'en écrire aucun sans l'avoir OUVERT.
+// Un lien deviné vers la documentation Google a été publié ici et
+// répondait 404 (2026-08-18) — l'utilisateur l'a découvert à ma place.
+// Une adresse plausible n'est pas une adresse vérifiée ; les trois
+// liens présents ont été testés et répondent 200.
 
 
 // ENTITÉ JURIDIQUE de l'usine — celle qui encaisse.
@@ -53,12 +59,23 @@ export type EtapeProcedure = {
   fait?: boolean;
 };
 
+export type ValeurCopiable = {
+  label: string;
+  valeur: string;
+  /** Où cette valeur se colle, et pourquoi elle compte. */
+  aide?: string;
+  /** Pas encore disponible : affichée sans bouton de copie. */
+  alerte?: boolean;
+};
+
 export type ProcedureSeed = {
   id: string;
   titre: string;
   pourquoi: string;
   rang: number;
   etapes: EtapeProcedure[];
+  /** Ce qu'il faudra coller dans les formulaires de cette démarche. */
+  valeurs?: ValeurCopiable[];
 };
 
 export const PROCEDURES: ProcedureSeed[] = [
@@ -68,6 +85,27 @@ export const PROCEDURES: ProcedureSeed[] = [
     pourquoi:
       "Chemin critique vers le store : rien ne se publie sans lui. Le compte ORGANISATION est obligatoire ici (décision D2) — un compte personnel neuf subit un test fermé de 12 testeurs pendant 14 jours continus avant toute publication ; l'organisation en est exemptée. C'est plusieurs semaines gagnées, et la seule raison pour laquelle on accepte la lourdeur du D-U-N-S.",
     rang: 1,
+    valeurs: [
+      { label: "Legal business name", valeur: "MARNWELL LLC",
+        aide: "Dun & Bradstreet ET Play Console. Sans article, sans point, en majuscules comme au registre." },
+      { label: "Business street address", valeur: "15442 Ventura Blvd, Ste 201-2828",
+        aide: "La suite « 201-2828 » fait partie de l'adresse : l'omettre fait échouer le recoupement." },
+      { label: "City", valeur: "Sherman Oaks" },
+      { label: "State", valeur: "California (CA)" },
+      { label: "ZIP", valeur: "91403" },
+      { label: "Country", valeur: "United States" },
+      { label: "State of incorporation", valeur: "New Mexico",
+        aide: "L'État de CONSTITUTION diffère de l'adresse : la LLC est du Nouveau-Mexique, son adresse est en Californie. Les deux sont exacts." },
+      { label: "Entity type", valeur: "Limited Liability Company (LLC)" },
+      { label: "Date of incorporation", valeur: "07/23/2026",
+        aide: "Format américain mois/jour/année." },
+      { label: "State file number", valeur: "3273477" },
+      { label: "State ID number", valeur: "0008118714" },
+      { label: "Authorized representative", valeur: "Mehdi Faid",
+        aide: "Associé unique, 100 % — c'est vous qui avez autorité pour créer le compte." },
+      { label: "Numéro fiscal fédéral (EIN)", valeur: "en cours d'obtention auprès de l'IRS", alerte: true,
+        aide: "Nécessaire au PROFIL DE PAIEMENT, pas à la création du compte. Le conserver dans un gestionnaire de mots de passe." },
+    ],
     etapes: [
       {
         code: "ss4",
@@ -89,9 +127,9 @@ export const PROCEDURES: ProcedureSeed[] = [
         code: "duns-demande",
         titre: "Demander le numéro D-U-N-S",
         detail:
-          "Gratuit, auprès de Dun & Bradstreet. La console Play propose un lien de demande dédié — l'emprunter plutôt que le formulaire générique, il est rattaché à la demande Google. Recopier la fiche d'identité ci-dessus À L'IDENTIQUE : « MARNWELL LLC », l'adresse de Sherman Oaks, l'État du Nouveau-Mexique.",
+          "Gratuit, auprès de Dun & Bradstreet. La Play Console affiche aussi un lien de demande DANS son formulaire d'inscription, à l'étape D-U-N-S : le prendre de préférence, il est rattaché à votre demande Google. Recopier la fiche d'identité ci-dessus à l'identique — les valeurs ci-dessous sont prêtes à coller.",
         qui: "humain",
-        lien: "https://support.google.com/googleplay/android-developer/answer/9934824",
+        lien: "https://www.dnb.com/duns-number/get-a-duns.html",
         attention:
           "Marnwell LLC a été constituée en juillet 2026 : Dun & Bradstreet n'en a probablement aucune trace, la demande part donc de zéro. Vérifier quand même dans son outil de recherche — un doublon bloque la vérification. Attendez-vous aussi à ce que Google demande des justificatifs supplémentaires : une société récente, à une adresse de domiciliation, attire l'examen.",
       },
@@ -166,6 +204,21 @@ export const PROCEDURES: ProcedureSeed[] = [
     pourquoi:
       "Ce qui s'enchaîne dès que le compte existe. Tout le contenu de la fiche est déjà prêt dans le dépôt de l'app (docs/planning/DOSSIER_STORE.md) : textes français, réponses au formulaire de sécurité des données avec leur source de vérification, captures régénérables en une commande.",
     rang: 2,
+    valeurs: [
+      { label: "Nom de l'application", valeur: "PromptLandia" },
+      { label: "Nom du package", valeur: "com.gloomingagency.promptlandia",
+        aide: "DÉFINITIF : il ne peut plus changer après la première publication." },
+      { label: "Politique de confidentialité (URL)", valeur: "https://promptlandia-bff.vercel.app/privacy",
+        aide: "Doit rester accessible SANS compte : Google la vérifie." },
+      { label: "Catégorie", valeur: "Éducation" },
+      { label: "Public cible", valeur: "6-8 ans et 9-12 ans",
+        aide: "Ces deux tranches, et aucune autre : cela fait basculer l'app sous la politique Familles." },
+      { label: "E-mail de contact", valeur: "gloomingagency@gmail.com" },
+      { label: "Abonnement mensuel — référence", valeur: "promptlandia_famille_mensuel",
+        aide: "6,99 €. La référence doit correspondre au caractère près à celle attendue par l'app." },
+      { label: "Abonnement annuel — référence", valeur: "promptlandia_famille_annuel",
+        aide: "44,99 €. Même exigence." },
+    ],
     etapes: [
       {
         code: "app-console",
@@ -230,6 +283,15 @@ export const PROCEDURES: ProcedureSeed[] = [
     pourquoi:
       "Différé volontairement (décision D2) : Google d'abord, Apple ensuite, pour ne pas payer deux abonnements avant d'avoir vendu quoi que ce soit. À lancer quand la première app est publiée sur Google Play — le châssis est déjà multiplateforme, la sortie iOS sera une build et une fiche, pas un chantier.",
     rang: 3,
+    valeurs: [
+      { label: "Legal entity name", valeur: "MARNWELL LLC",
+        aide: "Identique à Google : Apple recoupe avec Dun & Bradstreet." },
+      { label: "D-U-N-S Number", valeur: "à reporter une fois attribué", alerte: true,
+        aide: "LE MÊME que celui obtenu pour Google — rien à redemander." },
+      { label: "Headquarters address", valeur: "15442 Ventura Blvd, Ste 201-2828, Sherman Oaks, CA 91403, United States" },
+      { label: "Website", valeur: "https://promptlandia-bff.vercel.app",
+        aide: "Apple exige un site rattaché à l'entreprise. Prévoir un vrai domaine avant l'inscription." },
+    ],
     etapes: [
       {
         code: "apple-cout",

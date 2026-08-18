@@ -2,7 +2,7 @@ import Link from "next/link";
 import { asc } from "drizzle-orm";
 import { getDb, schema } from "@/db";
 import { PROCEDURES, ENTITE, type EtapeProcedure } from "@/lib/procedures-seed";
-import { FicheEntite } from "./entite";
+import { BlocCopiable } from "@/components/copiable";
 import { basculerEtape } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -66,10 +66,11 @@ export default async function ComptesPage() {
         <Link href="/apps/promptlandia">fiche de l&apos;app →</Link>
       </p>
 
-      <div id="entite" style={{ marginTop: 24, scrollMarginTop: 16 }}>
-        <FicheEntite
-          nom={ENTITE.nom}
-          lignes={[
+      <section id="entite" className="carte" style={{ marginTop: 24, scrollMarginTop: 16 }}>
+        <BlocCopiable
+          titre={`Entité qui encaisse · ${ENTITE.nom}`}
+          intro="À recopier au caractère près dans chaque formulaire. Une variation, même minuscule, fait échouer une vérification et coûte des jours."
+          valeurs={[
             { label: "Dénomination légale", valeur: ENTITE.nom },
             { label: "Forme", valeur: ENTITE.forme },
             { label: "État de constitution", valeur: ENTITE.etat },
@@ -85,7 +86,7 @@ export default async function ComptesPage() {
             { label: "Numéro fiscal fédéral (EIN)", valeur: ENTITE.einStatut, alerte: true },
           ]}
         />
-      </div>
+      </section>
 
       {procedures.map((p) => {
         const faites = p.etapes.filter((e) => e.fait).length;
@@ -130,6 +131,16 @@ export default async function ComptesPage() {
               </p>
             )}
             {!prochaine && <p style={{ color: "#22c55e", marginBottom: 16 }}>✓ Démarche terminée.</p>}
+
+            {/* Les valeurs AVANT les étapes : on ouvre cette page le
+                formulaire déjà à l'écran, pour coller — pas pour lire. */}
+            {p.valeurs && p.valeurs.length > 0 && (
+              <BlocCopiable
+                titre="À coller dans les formulaires"
+                intro="Chaque valeur telle qu'elle doit être saisie, vérifiée sur les documents officiels."
+                valeurs={p.valeurs}
+              />
+            )}
 
             <ol style={{ listStyle: "none", padding: 0, margin: 0, display: "grid", gap: 14 }}>
               {p.etapes.map((e, i) => (
